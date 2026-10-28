@@ -1,5 +1,11 @@
 # Flick
 
+> **Fork Erisin ES8189C — Android, écran 1024×600.** Cette version utilise le
+> package distinct `com.mossapps.flick.erisin`, un affichage paysage et un lecteur
+> en deux zones. Voir la [documentation Erisin](docs/ERISIN_ES8189C.md) pour
+> compiler, installer et connaître les validations effectuées. Les liens Play
+> Store et les versions amont ci-dessous concernent le projet Flick original.
+
 <p align="center">
   <img src="docs/app_screenshots/flick_banner.png" alt="Flick Banner" width="100%">
 </p>

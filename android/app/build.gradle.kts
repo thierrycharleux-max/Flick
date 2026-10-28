@@ -3,7 +3,6 @@ plugins {
     id("kotlin-android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services")
 }
 
 import java.io.File
@@ -44,14 +43,17 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.mossapps.flick"
+        // Distinct id: installs next to (and is never overwritten by) the
+        // Play Store build of Flick on the head unit.
+        applicationId = "com.mossapps.flick.erisin"
         minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 
         ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
+            // Head units are ARM (32-bit userland is common on Android 9 units).
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
 
         externalNativeBuild {
@@ -65,6 +67,10 @@ android {
         jniLibs {
             useLegacyPackaging = true
             pickFirsts += listOf("**/libc++_shared.so")
+            // Keep the sideload APK limited to the ARM ABIs used by the
+            // Erisin. Some Flutter plugins ship prebuilt x86 libraries that
+            // otherwise bypass the app-level abiFilters.
+            excludes += listOf("**/x86/**", "**/x86_64/**")
         }
     }
 
@@ -83,7 +89,13 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            // No key.properties (CI / sideload): fall back to the debug key so
+            // `flutter build apk --release` still produces an installable APK.
+            signingConfig = if (keystoreFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             isMinifyEnabled = false
             isShrinkResources = false
         }
@@ -153,8 +165,6 @@ tasks.register("copyNdkLibs") {
         val abiToArch = mapOf(
             "arm64-v8a" to "aarch64-linux-android",
             "armeabi-v7a" to "arm-linux-androideabi",
-            "x86_64" to "x86_64-linux-android",
-            "x86" to "i686-linux-android",
         )
 
         val jniLibsDir = project.file("src/main/jniLibs")
@@ -219,7 +229,6 @@ tasks.named("preBuild") {
 }
 
 dependencies {
-    implementation(platform("com.google.firebase:firebase-bom:34.12.0"))
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.documentfile:documentfile:1.1.0")
     implementation("androidx.media:media:1.7.0")

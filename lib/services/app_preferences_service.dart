@@ -185,7 +185,7 @@ class AppPreferences {
     this.glanceCardMinimized = false,
     this.replaceAlbumWithBitPerfectCapsule = false,
     this.albumsStretchArtwork = false,
-    this.animatedAlbumArt = true,
+    this.animatedAlbumArt = false,
     this.folderGridPageSize = 8,
     this.lastSeenChangelogVersion,
     this.bottomBarAutoCollapseEnabled = false,
@@ -212,7 +212,7 @@ class AppPreferences {
     this.autoFocusSearch = false,
     this.searchPlaybackMode = 'results',
     this.refreshRateMode = 'adaptive',
-    this.visualizerEnabled = true,
+    this.visualizerEnabled = false,
     this.orbitRadiusRatio = 1.0,
     this.orbitCenterOffsetRatio = -0.5,
     this.orbitCenterYRatio = 0.42,
@@ -764,7 +764,7 @@ class AppPreferencesService {
           prefs.getBool(_replaceAlbumWithBitPerfectCapsuleKey) ?? false,
       albumsStretchArtwork:
           prefs.getBool(_albumsStretchArtworkKey) ?? false,
-      animatedAlbumArt: prefs.getBool(_animatedAlbumArtKey) ?? true,
+      animatedAlbumArt: prefs.getBool(_animatedAlbumArtKey) ?? false,
       folderGridPageSize: prefs.getInt(_folderGridPageSizeKey) ?? 8,
       lastSeenChangelogVersion: prefs.getString(_lastSeenChangelogVersionKey),
       bottomBarAutoCollapseEnabled:
@@ -808,7 +808,7 @@ class AppPreferencesService {
       searchPlaybackMode:
           prefs.getString(_searchPlaybackModeKey) ?? 'results',
       refreshRateMode: await _resolveRefreshRateMode(prefs),
-      visualizerEnabled: prefs.getBool(_visualizerEnabledKey) ?? true,
+      visualizerEnabled: prefs.getBool(_visualizerEnabledKey) ?? false,
       orbitRadiusRatio: prefs.getDouble(_orbitRadiusRatioKey) ?? 1.0,
       orbitCenterOffsetRatio:
           prefs.getDouble(_orbitCenterOffsetRatioKey) ?? -0.5,
@@ -1480,7 +1480,7 @@ class AppPreferencesService {
 
   Future<bool> getAnimatedAlbumArt() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_animatedAlbumArtKey) ?? true;
+    return prefs.getBool(_animatedAlbumArtKey) ?? false;
   }
 
   Future<void> setAnimatedAlbumArt(bool value) async {
@@ -1853,7 +1853,7 @@ class AppPreferencesService {
 
   Future<bool> getVisualizerEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_visualizerEnabledKey) ?? true;
+    return prefs.getBool(_visualizerEnabledKey) ?? false;
   }
 
   Future<void> setVisualizerEnabled(bool value) async {
