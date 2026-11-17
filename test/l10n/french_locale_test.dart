@@ -76,7 +76,16 @@ void main() {
         reason: key,
       );
     }
+    expect(
+      fr.values.whereType<String>().where(
+        (text) => RegExp(r'\bjoueurs?\b', caseSensitive: false).hasMatch(text),
+      ),
+      isEmpty,
+    );
     final french = lookupAppLocalizations(const Locale('fr'));
+    expect(french.playerLayout, 'Disposition du lecteur');
+    expect(french.playNext, 'Lire ensuite');
+    expect(french.waveformSeekbar, 'Barre de progression avec forme d’onde');
     expect(french.songsCount(1), '1 titre');
     expect(french.songsCount(2), '2 titres');
     expect(french.songsCount(0), '0 titre');

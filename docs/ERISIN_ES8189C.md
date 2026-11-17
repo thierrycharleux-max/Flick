@@ -265,3 +265,41 @@ sur l’Erisin physique n’a été effectué pour cette traduction.
 
 L’outil local `graphify` n’est pas installé ; la mise à jour du graphe n’a pas
 pu être exécutée. Aucun fichier de graphe n’est livré avec le fork.
+
+
+## Mise à jour Erisin 0.23.0-erisin.6+36 (17 novembre 2026)
+
+Révision de 86 messages français dans le contexte musical : « lecteur »,
+« Lire ensuite », « écoutes », « pochette », « barre de progression »,
+« origine de l’extraction », etc. Les noms des morceaux restent inchangés.
+
+Sur le moteur Android utilisé par cette adaptation : fondu de 240 ms à la pause
+et à la reprise ; fondu sortant de 160 ms avant une sélection manuelle de titre,
+puis remontée de 240 ms. Un chargement se fait à volume nul pour éviter une
+attaque au volume maximal. La courbe douce ne modifie ni le volume mémorisé,
+ni la fréquence d’échantillonnage. Les mises à jour de volume et ReplayGain
+sont multipliées par le gain temporaire, y compris pendant une transition.
+
+Le fondu enchaîné automatique est activé par défaut pour 0,6 seconde, si aucun
+choix n’avait été enregistré. Un réglage antérieur explicite est conservé ;
+l’option et sa durée restent modifiables dans les réglages audio. Pause ou
+sélection manuelle annulent la préparation du successeur ; aucune lecture
+différée ne doit redémarrer après un arrêt. L’égaliseur reste rattaché à la
+session du lecteur actif lors d’un fondu enchaîné. Les chemins Rust et DAC
+externe ne reçoivent pas ces nouveaux fondus ; le DAC direct reste désactivé.
+
+Validation : 169 tests ciblés réussis ; après la dernière protection contre
+un échec de réglage du gain, les 10 tests du moteur de fondu repassent. Ces tests
+couvrent pause/reprise, chargement silencieux, volume nul, changement de volume,
+annulation d’une préparation, pause pendant un fondu, arrêt et destruction.
+
+APK ARM32/ARM64 installé par-dessus la version 35 sur émulateur Android 10
+1024×600, densité 240 : bibliothèque conservée ; enchaînement automatique entre
+deux WAV, précédent/suivant, pause et reprise via commandes média observés.
+Aucune exception fatale ni erreur de gain relevée dans le journal de ces essais.
+Les sept tests du catalogue français et des invariants repassent après la
+dernière correction de vocabulaire. Émulateur arrêté à la fin des vérifications.
+Le rendu audible sur l’Erisin réel reste à confirmer.
+
+Copie MBUX vérifiée avant retrait de la version 35, sauvegardée localement.
+Même certificat ; SHA-256 : `91e935bbf9af9edf725a4b22eddacefac238169d5d1d5bc50e27b36d44db42a4`.

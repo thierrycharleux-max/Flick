@@ -473,6 +473,10 @@ class PlayerService {
   }
 
   just_audio.AudioPlayer? _justAudioPlayer;
+  AndroidAudioEngine? get _androidEngine {
+    final engine = _playbackManager.activeEngine;
+    return engine is AndroidAudioEngine ? engine : null;
+  }
   // Cached crossfade curve index (0..3) for synchronous reads inside the
   // just_audio engine's config provider; refreshed from prefs on load/change.
   int _crossfadeCurveIndex = 0;
@@ -962,7 +966,7 @@ class PlayerService {
     } else {
       final player = _justAudioPlayer;
       if (player != null) {
-        await player.setVolume(_currentVolume);
+        await _setAndroidPlaybackVolume(_currentVolume);
         await player.setSpeed(playbackSpeedNotifier.value);
       }
     }
@@ -1961,7 +1965,13 @@ class PlayerService {
       if (_usingRustBackend && _rustAudioService.isInitialized) {
         await _rustAudioService.setVolume(volume);
       } else {
-        await _justAudioPlayer?.setVolume(volume);
+        final effective = math.min(
+          math.min(_currentVolume, 1.0) * _replayGainState.linear,
+          1.0,
+        );
+        await _setAndroidPlaybackVolume(
+          effective * (ducked ? _duckVolumeScale : 1.0),
+        );
       }
     } catch (e) {
       _debugLog('[AudioFocus] Failed to ${ducked ? 'apply' : 'lift'} duck: $e');
@@ -1998,6 +2008,14 @@ class PlayerService {
     await _configureAndroidAudioSession();
     final player = just_audio.AudioPlayer();
     _justAudioPlayer = player;
+    _observeAndroidAudioSession(player);
+    await player.setVolume(_currentVolume);
+    await player.setSpeed(playbackSpeedNotifier.value);
+    await _updateLoopMode();
+    return player;
+  }
+
+  void _observeAndroidAudioSession(just_audio.AudioPlayer player) {
     int? lastEqSessionId;
     player.androidAudioSessionIdStream.listen((sessionId) {
       if (sessionId == null || sessionId == lastEqSessionId) return;
@@ -2005,10 +2023,15 @@ class PlayerService {
       lastEqSessionId = sessionId;
       unawaited(reapplyEqualizer());
     });
-    await player.setVolume(_currentVolume);
-    await player.setSpeed(playbackSpeedNotifier.value);
-    await _updateLoopMode();
-    return player;
+  }
+
+  Future<void> _setAndroidPlaybackVolume(double volume) async {
+    final engine = _androidEngine;
+    if (engine != null) {
+      await engine.setOutputVolume(volume);
+    } else {
+      await _justAudioPlayer?.setVolume(volume);
+    }
   }
 
   Future<void> _configureAndroidPlayer(just_audio.AudioPlayer player) async {
@@ -2025,14 +2048,23 @@ class PlayerService {
       }
     }
 
-    await player.setVolume(_currentVolume);
+    final effective = math.min(_currentVolume, 1.0) * _replayGainState.linear;
+    await _setAndroidPlaybackVolume(
+      math.min(effective, 1.0) * (_isDucked ? _duckVolumeScale : 1.0),
+    );
     await player.setSpeed(playbackSpeedNotifier.value);
     await _updateLoopMode();
   }
 
   AndroidAudioEngine _createAndroidEngine() {
-    final engine = AndroidAudioEngine(
+    late final AndroidAudioEngine engine;
+    engine = AndroidAudioEngine(
       playerProvider: _ensureAndroidPlayer,
+      secondaryPlayerProvider: () async {
+        final player = just_audio.AudioPlayer();
+        _observeAndroidAudioSession(player);
+        return player;
+      },
       sourcesBuilder: _buildAudioSources,
       sourceBuilder: _buildAudioSourceForSong,
       playlistProvider: () => List<Song>.unmodifiable(_playlist),
@@ -2055,7 +2087,13 @@ class PlayerService {
         );
       },
       onNextSong: _resolveAndroidCrossfadeNext,
-      onTrackAdvanced: _onAndroidTrackAdvanced,
+      onTrackAdvanced: (track) {
+        // A natural crossfade swaps the active ExoPlayer. Keep session effects,
+        // live settings and disposal attached to the incoming player.
+        _justAudioPlayer = engine.activePlayer;
+        unawaited(reapplyEqualizer());
+        _onAndroidTrackAdvanced(track);
+      },
       onTrackError: _onAndroidTrackError,
     );
     engine.onTrackEnded = () {
@@ -6247,7 +6285,9 @@ class PlayerService {
         if (player != null) {
           // ExoPlayer clamps at 1.0; the boost portion (>1.0, from extended
           // volume and/or ReplayGain) is applied via Android LoudnessEnhancer.
-          await player.setVolume(math.min(effective, 1.0));
+          await _setAndroidPlaybackVolume(
+            math.min(effective, 1.0) * (_isDucked ? _duckVolumeScale : 1.0),
+          );
         }
         _rememberSoftwareVolume(clampedVolume);
         await _reconcileSystemVolumeBoost(effective);
@@ -6343,7 +6383,9 @@ class PlayerService {
     final effective =
         math.min(_currentVolume.clamp(0.0, 1.0), 1.0) * _replayGainState.linear;
     try {
-      await player.setVolume(math.min(effective, 1.0));
+      await _setAndroidPlaybackVolume(
+        math.min(effective, 1.0) * (_isDucked ? _duckVolumeScale : 1.0),
+      );
     } catch (e) {
       _debugLog('[RG] system-volume fold failed: $e');
     }

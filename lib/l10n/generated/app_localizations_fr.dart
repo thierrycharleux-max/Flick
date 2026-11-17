@@ -458,7 +458,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get allFavoritedTracksInOne =>
-      'Tous les morceaux favoris au même endroit. Jouez, mélangez ou gérez à partir d’ici.';
+      'Tous vos titres favoris au même endroit. Lancez la lecture, choisissez le mode aléatoire ou gérez vos favoris.';
 
   @override
   String get allFolders => 'Tous les dossiers';
@@ -1295,7 +1295,7 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get changeCover => 'Changer de couverture';
+  String get changeCover => 'Changer la pochette';
 
   @override
   String get changingSampleRateBitDepthOr =>
@@ -1727,7 +1727,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get couldNotReadTheCoverColors =>
-      'Impossible de lire les couleurs de la couverture. Le signal est toujours disponible.';
+      'Impossible d’analyser les couleurs de la pochette. Les informations audio restent disponibles.';
 
   @override
   String get couldNotReadTheSelectedImage =>
@@ -1755,7 +1755,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get couldNotUpdatePlaylistCover =>
-      'Impossible de mettre à jour la couverture de la playlist. Essayez une autre image.';
+      'Impossible de modifier la pochette de la liste de lecture. Essayez une autre image.';
 
   @override
   String get couldNotUseTheSelectedLyrics =>
@@ -1820,7 +1820,7 @@ class AppLocalizationsFr extends AppLocalizations {
       'Chaque onglet de navigation possède sa propre barre de recherche en haut qui filtre le contenu de cet onglet en direct au fur et à mesure que vous tapez.';
 
   @override
-  String get editCover => 'Modifier la couverture';
+  String get editCover => 'Modifier la pochette';
 
   @override
   String get crop => 'Recadrer';
@@ -1951,7 +1951,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get manualLyricsSyncStudio => 'Paroles et synchronisation Studio';
 
   @override
-  String get manualPlayNext => 'Jouer ensuite';
+  String get manualPlayNext => 'Lire ensuite';
 
   @override
   String get manualPlaybackSpeed => 'Vitesse de lecture';
@@ -1986,7 +1986,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get openTheActionsSheetFor =>
-      'Ouvrez la feuille d’actions d’une chanson ou personnalisez la barre de navigation.';
+      'Ouvrez le menu d’actions d’un titre ou personnalisez la barre de navigation.';
 
   @override
   String get openTheFullPlayer => 'Ouvrir le lecteur complet';
@@ -2000,11 +2000,11 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get opensTheActionsSheetPlay =>
-      'Ouvre la feuille d’actions : Jouer ensuite, Ajouter à la file d’attente, Ajouter à la liste de lecture, Aller à l’album, Aller à l’artiste, Partager, Afficher les informations ou Supprimer.';
+      'Ouvre le menu d’actions : Lire ensuite, Ajouter à la file d’attente, Ajouter à une liste de lecture, Aller à l’album, Aller à l’artiste, Partager, Informations ou Supprimer.';
 
   @override
   String get playASongOpenAn =>
-      'Jouez une chanson, ouvrez un album, activez une commande.';
+      'Écoutez un titre, ouvrez un album ou utilisez une commande.';
 
   @override
   String get playPauseNextPrevious => 'Lecture / Pause / Suivant / Précédent';
@@ -2030,14 +2030,14 @@ class AppLocalizationsFr extends AppLocalizations {
   String get reordering => 'Réorganisation';
 
   @override
-  String get replayTutorial => 'Tutoriel de relecture';
+  String get replayTutorial => 'Revoir le tutoriel';
 
   @override
   String get saturation => 'Saturation';
 
   @override
   String get scrubTheWaveformSeekbarReorder =>
-      'Parcourez la barre de recherche de forme d’onde, réorganisez les éléments de la file d’attente, réorganisez les pistes de la liste de lecture.';
+      'Déplacez le curseur dans la forme d’onde ou réorganisez les titres de la file d’attente et des listes de lecture.';
 
   @override
   String get seeYourMusicOrganizedBy =>
@@ -2056,7 +2056,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get showsTheArtistsAlbums =>
-      'Affiche les albums de l’artiste et une liste complète des pistes. Jouez tout, mélangez ou choisissez une piste de départ.';
+      'Affiche les albums de l’artiste et tous ses titres. Écoutez tout, lancez la lecture aléatoire ou choisissez un titre.';
 
   @override
   String get shuffleFromTheHeaderPlays =>
@@ -2129,7 +2129,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get tapTheAlbumArtTo =>
-      'Appuyez sur la pochette de l’album pour passer de la vue de couverture à la vue d’un disque vinyle en rotation.';
+      'Appuyez sur la pochette de l’album pour passer de la vue de la pochette à la vue d’un disque vinyle en rotation.';
 
   @override
   String get tapTheButtonToCreate =>
@@ -2161,7 +2161,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get tapTheMiniPlayerThe =>
-      'Appuyez sur le mini-lecteur. Le lecteur complet s’étend avec la pochette de l’album, la barre de recherche de forme d’onde et toutes les commandes de lecture.';
+      'Appuyez sur le mini-lecteur. Le lecteur complet s’étend avec la pochette de l’album, la barre de progression avec forme d’onde et toutes les commandes de lecture.';
 
   @override
   String get tapTheQueueIconTo =>
@@ -2185,7 +2185,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get theSongsTabListsEvery =>
-      'L’onglet Chansons répertorie toutes les pistes analysées par Flick. Faites défiler pour parcourir ou utilisez la barre de recherche pour filtrer par titre ou artiste.';
+      'L’onglet Titres répertorie toutes les pistes analysées par Flick. Faites défiler pour parcourir ou utilisez la barre de recherche pour filtrer par titre ou artiste.';
 
   @override
   String get theWidgetShowsCurrentTrack =>
@@ -2342,7 +2342,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get crossfadeIsMostReliableOnThe =>
-      'Crossfade est le plus fiable sur le moteur Standard. Sur le moteur de haute qualité (Rust), cela peut être instable – passez en Standard pour des fondus enchaînés cohérents.';
+      'Le fondu enchaîné est plus fiable avec le moteur Standard. Avec le moteur haute qualité (Rust), il peut être instable.';
 
   @override
   String get crossfeed => 'Alimentation croisée';
@@ -2355,18 +2355,18 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get crossfeedRunsOnTheHighQuality =>
-      'Crossfeed fonctionne uniquement sur le moteur de haute qualité (Rust). Le moteur Standard joue sans lui.';
+      'Le crossfeed est disponible uniquement avec le moteur haute qualité (Rust). Il n’est pas appliqué avec le moteur Standard.';
 
   @override
   String get crystalCaverns => 'Cavernes de Cristal';
 
   @override
   String get cueSheetTracksCannotBeEdited =>
-      'Les pistes de la feuille CUE ne peuvent pas être modifiées.';
+      'Les pistes définies par un fichier CUE ne peuvent pas être modifiées.';
 
   @override
   String get cueSheetTracksCannotBeEdited2 =>
-      'Les pistes de la feuille CUE ne peuvent pas être modifiées';
+      'Les pistes définies par un fichier CUE ne peuvent pas être modifiées';
 
   @override
   String get currentArtwork => 'Illustration actuelle';
@@ -3213,7 +3213,7 @@ class AppLocalizationsFr extends AppLocalizations {
       'Les chansons externes ne peuvent pas être modifiées';
 
   @override
-  String get extraCovers => 'Couvertures supplémentaires';
+  String get extraCovers => 'Pochettes supplémentaires';
 
   @override
   String get failedToActivateFallback =>
@@ -3707,7 +3707,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get gaplessViewModeAndAppearance =>
-      'Gapless, mode d’affichage et apparence';
+      'Lecture sans interruption, mode d’affichage et apparence';
 
   @override
   String gb(Object arg1) {
@@ -3849,7 +3849,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get hideTheFloatingMiniPlayerPill =>
-      'Cacher la pilule flottante du mini-joueur';
+      'Masquer la pastille flottante du mini-lecteur';
 
   @override
   String get hideTheIndexRailAfterInactivity =>
@@ -4200,7 +4200,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get keepTheSessionMovingOrHead =>
-      'Continuez la session ou revenez directement au joueur.';
+      'Poursuivez votre écoute ou revenez directement au lecteur.';
 
   @override
   String get keepYourReplay => 'Conservez votre Replay.';
@@ -4556,7 +4556,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get loadingPatchNotes => 'Chargement des notes de mise à jour...';
 
   @override
-  String get loadingReplay => 'Chargement de la relecture';
+  String get loadingReplay => 'Chargement du bilan d’écoute';
 
   @override
   String get loadingSession => 'Chargement de la session...';
@@ -4824,7 +4824,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get mitLicenseCopyrightC2026Flick =>
-      '\nLicence MIT\n\nCopyright (c) 2026 Contributeurs des joueurs Flick\n\nL’autorisation est accordée gratuitement à toute personne obtenant une copie\nde ce logiciel et des fichiers de documentation associés (le « Logiciel »), pour traiter\ndans le Logiciel sans restriction, y compris, sans limitation, les droits\nutiliser, copier, modifier, fusionner, publier, distribuer, sous-licencier et/ou vendre\ncopies du Logiciel, et pour permettre aux personnes à qui le Logiciel est\nfourni à cet effet, sous réserve des conditions suivantes :\n\nL’avis de droit d’auteur ci-dessus et cet avis d’autorisation doivent être inclus dans tous\ndes copies ou des parties substantielles du Logiciel.\n\nLE LOGICIEL EST FOURNI « TEL QUEL », SANS GARANTIE D’AUCUNE SORTE, EXPRESSE OU\nIMPLICITES, Y COMPRIS MAIS SANS LIMITATION LES GARANTIES DE QUALITÉ MARCHANDE,\nAPTITUDE À UN USAGE PARTICULIER ET NON-VIOLATION. EN AUCUN CAS LE\nLES AUTEURS OU TITULAIRES DES DROITS D’AUTEUR SONT RESPONSABLES DE TOUTE RÉCLAMATION, DOMMAGES OU AUTRES\nRESPONSABILITÉ, QUE CE SOIT DANS UNE ACTION CONTRACTUELLE, DÉLIT OU AUTRE, DÉCOULANT DE,\nEN RAISON OU EN RELATION AVEC LE LOGICIEL OU L’UTILISATION OU D’AUTRES TRANSACTIONS DANS LE\nLOGICIEL.\n';
+      '\nLicence MIT\n\nCopyright (c) 2026 Flick Player Contributors\n\nIl est accordé, gratuitement, à toute personne obtenant une copie de ce logiciel et des fichiers de documentation associés (le « Logiciel »), le droit d’utiliser le Logiciel sans restriction, notamment les droits de l’utiliser, le copier, le modifier, le fusionner, le publier, le distribuer, le concéder sous licence et/ou en vendre des copies, et d’autoriser les personnes auxquelles le Logiciel est fourni à le faire, sous réserve de la condition suivante :\n\nLa mention de copyright ci-dessus et la présente autorisation doivent être incluses dans toutes les copies ou parties substantielles du Logiciel.\n\nLE LOGICIEL EST FOURNI « EN L’ÉTAT », SANS GARANTIE D’AUCUNE SORTE, EXPRESSE OU IMPLICITE, NOTAMMENT SANS GARANTIE DE QUALITÉ MARCHANDE, D’ADÉQUATION À UN USAGE PARTICULIER OU D’ABSENCE DE CONTREFAÇON. LES AUTEURS OU TITULAIRES DU COPYRIGHT NE SAURAIENT ÊTRE TENUS RESPONSABLES D’AUCUNE RÉCLAMATION, D’AUCUN DOMMAGE OU D’AUCUNE AUTRE RESPONSABILITÉ, QUE CE SOIT DANS LE CADRE D’UN CONTRAT, D’UN DÉLIT OU AUTRE, RÉSULTANT DU LOGICIEL, DE SON UTILISATION OU DE TOUTE AUTRE OPÉRATION LE CONCERNANT.\n';
 
   @override
   String get mix => 'Mélanger';
@@ -4906,11 +4906,11 @@ class AppLocalizationsFr extends AppLocalizations {
       'La plupart des serveurs DLNA n’ont pas besoin de mot de passe';
 
   @override
-  String get mostPlayed => 'Les plus joués';
+  String get mostPlayed => 'Les plus écoutés';
 
   @override
   String mostReplayed(Object arg1) {
-    return 'Les plus rejoués · $arg1';
+    return 'Les plus réécoutés · $arg1';
   }
 
   @override
@@ -4918,14 +4918,14 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get motionArtIsReplacedWhileBit =>
-      'L’art animé est remplacé tandis que la sortie bit-perfect est active';
+      'La pochette animée est remplacée lorsque la sortie bit-perfect est active';
 
   @override
   String get motionArtPlaysDuringBitPerfect =>
-      'L’art animé est lu pendant un son bit-perfect (peut interrompre la lecture sur certains DAP)';
+      'Afficher la pochette animée pendant la lecture bit-perfect (peut interrompre le son sur certains baladeurs)';
 
   @override
-  String get motionArtRefreshed => 'Art animé actualisé';
+  String get motionArtRefreshed => 'Pochette animée actualisée';
 
   @override
   String get moveEveryStampedLyricForwardOr =>
@@ -5062,10 +5062,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get next => 'Suivant';
 
   @override
-  String get nextSong => 'Chanson suivante';
+  String get nextSong => 'Titre suivant';
 
   @override
-  String get nextSong2 => 'Chanson suivante';
+  String get nextSong2 => 'Titre suivant';
 
   @override
   String nextToGo(Object arg1, Object remaining, Object unit) {
@@ -5377,24 +5377,24 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get onboardingPlaybackBody =>
-      'Appuyez sur n’importe quelle chanson pour accéder au lecteur complet\navec barre de recherche de forme d’onde,\négaliseur, paroles et ambiance\nvisuels de pochettes d’album.';
+      'Touchez un titre pour ouvrir le lecteur :\nforme d’onde et progression,\négaliseur, paroles et\nanimations de la pochette.';
 
   @override
   String get onboardingPlaybackTitle => 'Riche\nLecture';
 
   @override
   String get onboardingReadyBody =>
-      'Commencez à explorer votre musique.\nAsseyez-vous, détendez-vous et profitez\nle son du lecteur Flick.';
+      'Explorez votre musique.\nInstallez-vous et profitez\ndu son de Flick.';
 
   @override
   String get onboardingReadyTitle => 'Vous êtes\nTout est prêt';
 
   @override
   String get onboardingWelcomeBody =>
-      'Un lecteur de musique magnifique et rapide\nconstruit pour votre bibliothèque locale.\nAucune publicité. Aucun suivi. Juste de la musique.';
+      'Un lecteur musical rapide et agréable\npour votre bibliothèque locale.\nSans publicité ni suivi. Juste de la musique.';
 
   @override
-  String get onboardingWelcomeTitle => 'Bienvenue à\nLecteur Flick';
+  String get onboardingWelcomeTitle => 'Bienvenue dans\nFlick';
 
   @override
   String get onlineResults => 'Résultats en ligne';
@@ -5478,7 +5478,8 @@ class AppLocalizationsFr extends AppLocalizations {
       'Notre moteur propulsé par Rust. Un son plus pur et une lecture plus fluide — recommandé pour une écoute quotidienne.';
 
   @override
-  String get outlineTheMiniPlayer => 'Décrivez le mini-lecteur';
+  String get outlineTheMiniPlayer =>
+      'Afficher un contour autour du mini-lecteur';
 
   @override
   String get output => 'Sortie';
@@ -5624,34 +5625,34 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get playAFewSongsAndThis =>
-      'Jouez quelques chansons et cette page commencera à se remplir de mix, d’artistes et de raccourcis.';
+      'Écoutez quelques titres pour retrouver ici des mix, des artistes et des raccourcis.';
 
   @override
   String get playAFewTracksTodayTo =>
-      'Jouez quelques morceaux aujourd’hui pour construire votre récapitulatif quotidien.';
+      'Écoutez quelques titres aujourd’hui pour créer votre récapitulatif quotidien.';
 
   @override
   String get playARandomLibrarySongWhen =>
-      'Jouez une chanson de la bibliothèque aléatoire à la fin de la file d’attente';
+      'Lire un titre au hasard dans la bibliothèque à la fin de la file d’attente';
 
   @override
-  String get playAgain => 'Rejouer';
+  String get playAgain => 'Réécouter';
 
   @override
-  String get playAtTheRecordedLevel => 'Jouer au niveau enregistré';
+  String get playAtTheRecordedLevel => 'Lire au niveau enregistré';
 
   @override
-  String get playBadges => 'Jouer aux badges';
+  String get playBadges => 'Badges d’écoute';
 
   @override
   String get playCategoriesInRandomOrderTracks =>
       'Lire les catégories dans un ordre aléatoire, les pistes dans l’ordre';
 
   @override
-  String get playInOrder => 'Jouez dans l’ordre';
+  String get playInOrder => 'Lire dans l’ordre';
 
   @override
-  String get playNext => 'Jouer ensuite';
+  String get playNext => 'Lire ensuite';
 
   @override
   String get playStoreUpdatesUseGooglePlay =>
@@ -5758,7 +5759,7 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get playerLayout => 'Disposition du joueur';
+  String get playerLayout => 'Disposition du lecteur';
 
   @override
   String get playerMenuAddToPlaylist => 'Ajouter à la liste de lecture';
@@ -5770,7 +5771,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get playerMenuEditMetadata => 'Modifier les métadonnées';
 
   @override
-  String get playerMenuRefreshAlbumArt => 'Actualiser l’art animé';
+  String get playerMenuRefreshAlbumArt => 'Actualiser la pochette animée';
 
   @override
   String get playerMenuSetAlbumArt => 'Définir la pochette de l’album';
@@ -5796,10 +5797,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get playlist2 => 'Liste de lecture';
 
   @override
-  String get playlistCoverRemoved => 'Couverture de la playlist supprimée';
+  String get playlistCoverRemoved =>
+      'Pochette de la liste de lecture supprimée';
 
   @override
-  String get playlistCoverUpdated => 'Couverture de la playlist mise à jour';
+  String get playlistCoverUpdated =>
+      'Pochette de la liste de lecture mise à jour';
 
   @override
   String playlistCreated(Object arg1) {
@@ -5830,7 +5833,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String plays(Object arg1) {
-    return '$arg1 joue';
+    return '$arg1 écoutes';
   }
 
   @override
@@ -5845,7 +5848,7 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get playsInRotation => 'joue en rotation';
+  String get playsInRotation => 'écoutes dans votre sélection';
 
   @override
   String get pleaseEnterAPlaylistName => 'Veuillez saisir un nom de playlist';
@@ -5856,7 +5859,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String posterPreviewPlays(Object arg1, Object arg2) {
-    return 'Aperçu de l’affiche $arg1. $arg2 joue.';
+    return 'Aperçu de l’affiche $arg1. $arg2 écoutes.';
   }
 
   @override
@@ -5922,10 +5925,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get previewUse => 'Aperçu et utilisation';
 
   @override
-  String get previousSong => 'Chanson précédente';
+  String get previousSong => 'Titre précédent';
 
   @override
-  String get previousSong2 => 'Chanson précédente';
+  String get previousSong2 => 'Titre précédent';
 
   @override
   String get prewarming => 'Préchauffage';
@@ -6028,7 +6031,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get readMode => 'Mode lecture';
 
   @override
-  String get readingTheCoverColors => 'Lecture des couleurs de couverture…';
+  String get readingTheCoverColors => 'Analyse des couleurs de la pochette…';
 
   @override
   String readyToRemoveSongKeepingIn(int count, Object kept) {
@@ -6255,7 +6258,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get reorderFilterAndShuffleFromThis =>
-      'Réorganisez, filtrez et mélangez à partir de cet en-tête.';
+      'Utilisez cet en-tête pour trier, filtrer et lancer la lecture aléatoire.';
 
   @override
   String repeat(Object arg1) {
@@ -6273,10 +6276,10 @@ class AppLocalizationsFr extends AppLocalizations {
       'Remplacez le nom de l’album par une capsule bit-perfect vérifiée lors de la diffusion en streaming bit-perfect';
 
   @override
-  String get replay => 'Rejouer';
+  String get replay => 'Bilan d’écoute';
 
   @override
-  String get replayCouldnTLoad => 'La relecture n’a pas pu se charger.';
+  String get replayCouldnTLoad => 'Impossible de charger le bilan d’écoute.';
 
   @override
   String get replayStudio => 'Replay Studio';
@@ -6311,20 +6314,20 @@ class AppLocalizationsFr extends AppLocalizations {
   String get reset => 'Réinitialiser';
 
   @override
-  String get resetArtwork => 'Réinitialiser l’illustration';
+  String get resetArtwork => 'Réinitialiser la pochette';
 
   @override
   String get resetArtworkDescription =>
-      'Détecter à nouveau les illustrations des fichiers de cet album ? Les couvertures détectées automatiquement sont remplacées par des illustrations lues à partir des fichiers ; les illustrations personnalisées sont conservées.';
+      'Rechercher à nouveau les pochettes dans les fichiers de cet album ? Les pochettes détectées automatiquement seront remplacées par celles des fichiers ; les pochettes personnalisées seront conservées.';
 
   @override
   String resetArtworkFor(Object arg1) {
-    return 'Réinitialiser l’illustration pour \"$arg1\".';
+    return 'Réinitialiser la pochette de « $arg1 ».';
   }
 
   @override
   String resetArtworkFor2(Object arg1) {
-    return 'Réinitialiser l’illustration pour \"$arg1\".';
+    return 'Réinitialiser la pochette de « $arg1 ».';
   }
 
   @override
@@ -6396,7 +6399,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get resumeAFamiliarFavoriteOrShuffle =>
-      'Reprenez un favori familier ou mélangez l’un des mixages réalisés à partir de votre écoute.';
+      'Réécoutez un favori ou lancez un mix en mode aléatoire à partir de votre historique d’écoute.';
 
   @override
   String get resumeOnReconnect => 'Reprise à la reconnexion';
@@ -6435,7 +6438,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get root => 'Racine';
 
   @override
-  String get rotationSeek => 'recherche de rotation';
+  String get rotationSeek => 'Déplacement dans le morceau par rotation';
 
   @override
   String get roundedAlbumArtCardWithA =>
@@ -6528,7 +6531,8 @@ class AppLocalizationsFr extends AppLocalizations {
   String get saveCurrentAsPreset => 'Enregistrer le courant comme préréglage';
 
   @override
-  String get saveCustomizeReplay => 'Enregistrer/personnaliser la relecture';
+  String get saveCustomizeReplay =>
+      'Enregistrer / personnaliser le bilan d’écoute';
 
   @override
   String get saveInFlick => 'Enregistrer dans Flick';
@@ -6726,7 +6730,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get searchOnlineLyrics => 'Rechercher des paroles en ligne';
 
   @override
-  String get searchPlayback => 'Recherche de lecture';
+  String get searchPlayback => 'Lecture depuis la recherche';
 
   @override
   String get searchResults => 'Résultats de la recherche';
@@ -6829,7 +6833,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get separateTheMiniPlayerToCustomize =>
-      'Séparez le mini-lecteur pour personnaliser sa largeur et son espace. Vos valeurs personnalisées sont enregistrées lors de votre adhésion.';
+      'Détachez le mini-lecteur pour régler sa largeur et son espacement. Vos réglages sont conservés lorsqu’il est rattaché.';
 
   @override
   String get serialNumber => 'Numéro de série';
@@ -6971,7 +6975,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get showRecentlyPlayedArtistsOnThe =>
-      'Afficher les artistes récemment joués sur l’écran d’accueil';
+      'Afficher les artistes écoutés récemment sur l’écran d’accueil';
 
   @override
   String get showRelatedAlbumsOnAlbumPages =>
@@ -7003,7 +7007,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get showTheFloatingMiniPlayerPill =>
-      'Afficher la pilule flottante du mini-joueur sur les écrans';
+      'Afficher la pastille flottante du mini-lecteur';
 
   @override
   String get showTheGlassFrameAroundAlbum =>
@@ -7085,18 +7089,18 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get shuffleFavorites => 'Mélanger les favoris';
+  String get shuffleFavorites => 'Écouter les favoris en mode aléatoire';
 
   @override
   String get shuffleMode => 'Mode aléatoire';
 
   @override
   String get shuffleSongsAndJumpBetweenCategories =>
-      'Mélangez les chansons et passez d’une catégorie à l’autre';
+      'Lire les titres et les catégories en mode aléatoire';
 
   @override
   String get shuffleSongsInCurrentList =>
-      'Mélanger les chansons dans la liste actuelle';
+      'Lire les titres de la liste actuelle en mode aléatoire';
 
   @override
   String get signInFailedRetry => 'Échec de la connexion – Réessayez';
@@ -7189,7 +7193,7 @@ class AppLocalizationsFr extends AppLocalizations {
       'Informations du journal d’extraction, pas une étape du chemin de lecture actuel.';
 
   @override
-  String get signalRipProvenance => 'Origine de l’arrachement';
+  String get signalRipProvenance => 'Origine de l’extraction';
 
   @override
   String get signalRipper => 'Éventreur';
@@ -7569,7 +7573,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get songsYouPlayWillAppearHere =>
-      'Les chansons que vous jouez apparaîtront ici';
+      'Les titres que vous écoutez apparaîtront ici';
 
   @override
   String get songsYouScanIntoYourLibrary =>
@@ -7610,7 +7614,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get squareRoot => 'Racine carrée';
 
   @override
-  String get stampNext => 'Tampon et suivant';
+  String get stampNext => 'Horodater et suivant';
 
   @override
   String get stampNow => 'Timbre maintenant';
@@ -7917,7 +7921,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get tapEditTextTopRight =>
-      '1. Appuyez sur « Modifier le texte » (en haut à droite) et collez les paroles – une ligne par ligne.\n2. Jouez la chanson.\n3. Choisissez la ligne actuelle dans la liste Lignes.\n4. Appuyez sur « Tampon et suivant » lorsque vous entendez cette ligne.\n5. Enregistrez une fois terminé.';
+      '1. Appuyez sur « Modifier le texte » (en haut à droite) et collez les paroles – une ligne par ligne.\n2. Lancez la lecture du titre.\n3. Choisissez la ligne actuelle dans la liste Lignes.\n4. Appuyez sur « Horodater et suivant » lorsque vous entendez cette ligne.\n5. Enregistrez une fois terminé.';
 
   @override
   String get tapIconsToSwitchTabsLong =>
@@ -7929,7 +7933,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get tapTheMiniPlayerForWaveform =>
-      'Appuyez sur le mini-lecteur pour la barre de recherche de forme d’onde, l’égaliseur, les paroles et le visualiseur.';
+      'Appuyez sur le mini-lecteur pour la barre de progression avec forme d’onde, l’égaliseur, les paroles et le visualiseur.';
 
   @override
   String get tapToInspect12602280Png =>
@@ -8216,7 +8220,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get track3 => 'Numéro de piste';
 
   @override
-  String get trackBitDepth => 'Profondeur de bits de suivi';
+  String get trackBitDepth => 'Résolution en bits du titre';
 
   @override
   String get trackChannels => 'Suivre les chaînes';
@@ -8232,7 +8236,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get trackDsdRate => 'Suivre le taux DSD';
 
   @override
-  String get trackNumber => 'Numéro de suivi';
+  String get trackNumber => 'Numéro de piste';
 
   @override
   String get trackSampleRate => 'Suivre la fréquence d’échantillonnage';
@@ -8245,7 +8249,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get trackTimeSumsTheFullDuration =>
-      'Le temps de suivi totalise la durée totale des lectures enregistrées.';
+      'La durée cumulée correspond à la durée totale des écoutes enregistrées.';
 
   @override
   String tracks(Object _totalTracks) {
@@ -8760,7 +8764,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get visualizerAlbumColorsDescription =>
-      'Suivez les couleurs de la couverture de l’album ; monochrome lorsqu’il n’est pas disponible';
+      'Utiliser les couleurs de la pochette de l’album ; sinon, utiliser une seule couleur';
 
   @override
   String get visualizerBlocks => 'Blocs de décoloration';
@@ -8801,11 +8805,11 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get volumeIsFixedWhileBitPerfect =>
-      'Le volume est corrigé lors du transfert bit-perfect car le volume matériel USB n’est pas disponible dans Flick. Utilisez les commandes de l’appareil ou jouez à PCM avec bit-perfect désactivé pour le volume du logiciel.';
+      'Le volume est fixe en sortie bit-perfect lorsque le réglage matériel du volume USB n’est pas disponible. Utilisez les commandes physiques de l’appareil ou lisez en PCM avec le mode bit-perfect désactivé.';
 
   @override
   String get volumeIsFixedWhileBitPerfect2 =>
-      'Le volume est corrigé lors du transfert bit-perfect car le volume matériel USB n’est pas disponible dans Flick. Utilisez les commandes de l’appareil ou jouez à PCM avec bit-perfect désactivé pour le volume du logiciel.';
+      'Le volume est fixe en sortie bit-perfect lorsque le réglage matériel du volume USB n’est pas disponible. Utilisez les commandes physiques de l’appareil ou lisez en PCM avec le mode bit-perfect désactivé.';
 
   @override
   String get directUsbFormatNotice =>
@@ -8813,7 +8817,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get usbHardwareVolumeUnavailable =>
-      'Le volume matériel USB n’est pas disponible dans Flick. Pendant le transfert bit-perfect, utilisez les commandes physiques de l’appareil. Pour le volume logiciel, jouez à PCM avec bit-perfect désactivé.';
+      'Le réglage matériel du volume USB n’est pas disponible dans Flick. En sortie bit-perfect, utilisez les commandes physiques de l’appareil. Pour régler le volume dans l’application, lisez en PCM avec le mode bit-perfect désactivé.';
 
   @override
   String usbHardwareVolumeError(String reason) {
@@ -8848,7 +8852,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get waveform => 'Forme d’onde';
 
   @override
-  String get waveformSeekbar => 'Barre de recherche de forme d’onde';
+  String get waveformSeekbar => 'Barre de progression avec forme d’onde';
 
   @override
   String weLlKeepTheBestQuality(int count) {
@@ -8905,7 +8909,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get whenYouPlayOverBluetoothAndroid =>
-      'Lorsque vous jouez sur Bluetooth, Android négocie le codec avec votre casque ou votre haut-parleur.';
+      'Lors d’une écoute en Bluetooth, Android négocie le codec avec le casque ou l’enceinte.';
 
   @override
   String get whereShouldTheLrcFileBe =>

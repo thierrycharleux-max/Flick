@@ -14,6 +14,7 @@ class AudioEngineManager {
   PlaybackState? get latestState => _latestState;
   AudioEngineType? get activeEngineType => _currentEngineType;
   bool get hasAttachedEngine => _currentEngine != null;
+  AudioEngine? get activeEngine => _currentEngine;
 
   AudioEngine? _currentEngine;
   StreamSubscription<PlaybackState>? _engineSubscription;

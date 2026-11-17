@@ -132,8 +132,8 @@ class AppPreferences {
     this.showEngineSelector = true,
     this.showUsbVolumeOnMenu = true,
     this.showUsbVolumeOnSettings = false,
-    this.crossfadeEnabled = false,
-    this.crossfadeDurationSecs = 3.0,
+    this.crossfadeEnabled = true,
+    this.crossfadeDurationSecs = 0.6,
     this.crossfadeCurveIndex = 0,
     this.crossfeedLevel = 0,
     this.swipeActionsEnabled = false,
@@ -685,8 +685,8 @@ class AppPreferencesService {
       showUsbVolumeOnMenu: prefs.getBool(_showUsbVolumeOnMenuKey) ?? true,
       showUsbVolumeOnSettings:
           prefs.getBool(_showUsbVolumeOnSettingsKey) ?? false,
-      crossfadeEnabled: prefs.getBool(_crossfadeEnabledKey) ?? false,
-      crossfadeDurationSecs: prefs.getDouble(_crossfadeDurationKey) ?? 3.0,
+      crossfadeEnabled: prefs.getBool(_crossfadeEnabledKey) ?? true,
+      crossfadeDurationSecs: prefs.getDouble(_crossfadeDurationKey) ?? 0.6,
       crossfadeCurveIndex: prefs.getInt(_crossfadeCurveKey) ?? 0,
       crossfeedLevel: prefs.getInt(_crossfeedLevelKey) ?? 0,
       swipeActionsEnabled: prefs.getBool(_swipeActionsEnabledKey) ?? false,
@@ -960,7 +960,7 @@ class AppPreferencesService {
 
   Future<bool> getCrossfadeEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_crossfadeEnabledKey) ?? false;
+    return prefs.getBool(_crossfadeEnabledKey) ?? true;
   }
 
   Future<void> setCrossfadeEnabled(bool value) async {
@@ -970,7 +970,7 @@ class AppPreferencesService {
 
   Future<double> getCrossfadeDurationSecs() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getDouble(_crossfadeDurationKey) ?? 3.0;
+    return prefs.getDouble(_crossfadeDurationKey) ?? 0.6;
   }
 
   Future<void> setCrossfadeDurationSecs(double value) async {
