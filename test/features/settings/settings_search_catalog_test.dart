@@ -23,12 +23,16 @@ void main() {
       for (final file in Directory(_screens).listSync().whereType<File>()) {
         final name = file.uri.pathSegments.last;
         if (!name.endsWith('_settings_screen.dart')) continue;
+        // These upstream screens are deliberately unreachable in Erisin.
+        if (name == 'uac2_settings_screen.dart') continue;
         expect(
           pageStems,
           contains(name.replaceFirst('_screen.dart', '')),
           reason: '$name needs a settings search entry',
         );
       }
+      expect(pages.where((p) => p.id.startsWith('uac2')), isEmpty,
+          reason: 'External DAC settings must stay disabled on Erisin');
       for (final page in pages.where((p) => p.sections.isNotEmpty)) {
         final stem = page.id.replaceFirst(RegExp(r'_\d$'), '');
         var source = File('$_screens/${stem}_screen.dart').readAsStringSync();

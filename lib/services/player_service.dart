@@ -1713,24 +1713,9 @@ class PlayerService {
     );
   }
 
-  /// Complete USB auto-engage even when no track has been played yet.
-  /// Changing the engine preference alone does not re-run launch volume setup.
-  Future<bool> enableUsbDacBitPerfect() async {
-    await setAudioEnginePreference(AudioEnginePreference.isochronousUsb);
-    final applied = await _uac2Service.setBitPerfectEnabled(true);
-    if (!applied) return false;
-    try {
-      // Permission may reveal a different serial, so use the authorized route
-      // after activation rather than the pre-permission attach notification.
-      await _restoreUsbDacVolumeBeforePlayback(
-        AudioEngineType.usbDacExperimental,
-      );
-      return true;
-    } catch (e) {
-      _debugLog('[VolFlow] USB DAC handoff volume restore failed: $e');
-      return false;
-    }
-  }
+  /// Direct USB DAC output is disabled in the Erisin edition, including calls
+  /// from legacy prompts. Storage on USB remains available to the scanner.
+  Future<bool> enableUsbDacBitPerfect() async => false;
 
   /// Re-resolves the desired engine/route. The newly selected engine attaches
   /// on the next playback request.

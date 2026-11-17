@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -81,7 +80,7 @@ class AppleMusicCache {
     );
     _mem[key] = entry;
     if (!transient) {
-      unawaited(_writeDisk(key, entry));
+      await _writeDisk(key, entry);
     }
     return value;
   }

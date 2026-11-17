@@ -99,6 +99,9 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
+          # Match the APK toolchain and pubspec.lock; floating stable silently
+          # upgraded SDK-pinned test dependencies before the freshness check.
+          flutter-version: "3.47.8"
           channel: stable
           cache: true
 
@@ -106,7 +109,7 @@ jobs:
         uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
 
       - name: pub get
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: build_runner
         run: dart run build_runner build --delete-conflicting-outputs

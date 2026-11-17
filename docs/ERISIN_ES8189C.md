@@ -303,3 +303,21 @@ Le rendu audible sur l’Erisin réel reste à confirmer.
 
 Copie MBUX vérifiée avant retrait de la version 35, sauvegardée localement.
 Même certificat ; SHA-256 : `91e935bbf9af9edf725a4b22eddacefac238169d5d1d5bc50e27b36d44db42a4`.
+
+
+## Contrôles GitHub après la version 36 (17 novembre 2026)
+
+Le contrôle de fraîcheur signalait des fichiers générés périmés, alors que le
+seul fichier modifié était `pubspec.lock`. La CI flottante utilisait Flutter
+3.50.0 au lieu du 3.47.8 de l’APK, entraînant sept changements de dépendances.
+La CI est alignée sur 3.47.8 et vérifie désormais le verrouillage des dépendances
+dès `pub get --enforce-lockfile`. Le contrôle de fraîcheur reste actif.
+
+La suite complète est adaptée à la suppression du DAC externe : les tests
+vérifient que l’activation directe est refusée sans requête USB, changement
+de route ni modification de volume. Les écrans UAC2 amont conservés dans les
+sources restent absents de la recherche des réglages. Deux écritures de cache
+Apple Music/pochettes sont attendues avant de signaler la fin d’une résolution,
+ce qui empêche une lecture ou une actualisation immédiate de retrouver l’ancien
+contenu. Enfin, les compteurs de pistes/disques manquants conservent le chiffre
+zéro avec la règle française de pluriel.

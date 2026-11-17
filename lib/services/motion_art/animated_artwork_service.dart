@@ -730,7 +730,7 @@ class AnimatedArtworkService {
       );
       _mem[key] = entry;
       // Only persist definitive outcomes; transient failures retry next launch.
-      if (!transient) unawaited(_writeDiskCache(key, entry));
+      if (!transient) await _writeDiskCache(key, entry);
       return MotionArtLookup(artwork: entry.artwork, transient: transient);
     }();
 

@@ -374,7 +374,7 @@ class AppLocalizationsFr extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count disques manquants',
-      one: '1 disque manquant',
+      one: '$count disque manquant',
     );
     return '$_temp0';
   }
@@ -395,7 +395,7 @@ class AppLocalizationsFr extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count pistes manquantes',
-      one: '1 piste manquante',
+      one: '$count piste manquante',
     );
     return '$_temp0';
   }
