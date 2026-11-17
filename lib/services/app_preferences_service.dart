@@ -1830,10 +1830,10 @@ class AppPreferencesService {
     await prefs.setString(_refreshRateModeKey, value);
   }
 
-  /// Returns the persisted UI language tag, or 'system' when unset.
+  /// Returns the saved choice, defaulting to French for the Erisin edition.
   Future<String> getAppLocale() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_appLocaleKey) ?? 'system';
+    return prefs.getString(_appLocaleKey) ?? 'fr';
   }
 
   Future<void> setAppLocale(String value) async {

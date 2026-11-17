@@ -237,3 +237,31 @@ signalé dans le journal observé. Les images de test utilisent une pochette et
 un intitulé de démonstration ; aucune musique de l'utilisateur n'est modifiée.
 Copie MBUX vérifiée avant retrait de la version 33 (sauvegardée localement).
 Même certificat local ; SHA-256 : `8d72de6a21d7c155d369af08fc0f6612c1230a0e123a3f15cd30e5c27d864192`.
+
+
+## Mise à jour Erisin 0.23.0-erisin.5+35 (17 novembre 2026)
+
+Ajout du français : catalogue complet de 2 519 messages, pluriels adaptés et
+choix « Français » dans les réglages de langue. En l’absence de choix enregistré,
+l’édition Erisin démarre en français, même si Android est en anglais. Un choix
+explicite antérieur (autre langue ou langue du système) est conservé. Les titres,
+artistes et albums issus des fichiers musicaux ne sont pas traduits.
+
+Les commandes de notification reçoivent également les libellés de la langue
+choisie dans Flick, sans lecture supplémentaire du stockage au début d’un titre.
+La disposition du lecteur, la sortie audio Android et l’actualisation de la
+bibliothèque au lancement restent inchangées.
+
+Vérifications : 103 tests de traduction et d’affichage réussis ; contrôle des
+clés et paramètres du catalogue français, des pluriels, de la préférence
+persistante et des libellés de notification. Analyse ciblée sans anomalie.
+
+Après harmonisation des compteurs singulier/pluriel dans les vues Titres et Albums,
+13 tests ciblés supplémentaires réussissent. Installation par-dessus la version
+34 sur émulateur Android 10 (1024×600), ouverture en français sur un système
+anglais, analyse d’un dossier de démonstration et lecture WAV vérifiées. Les
+commandes natives de notification sont également en français. Aucun essai
+sur l’Erisin physique n’a été effectué pour cette traduction.
+
+L’outil local `graphify` n’est pas installé ; la mise à jour du graphe n’a pas
+pu être exécutée. Aucun fichier de graphe n’est livré avec le fork.

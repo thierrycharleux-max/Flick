@@ -1942,7 +1942,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
                 ),
                 const SizedBox(height: AppConstants.spacingXxs),
                 Text(
-                  l10n.songs2(songCount),
+                  l10n.songsCount(songCount),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: context.adaptiveTextSecondary,
                   ),
@@ -2036,7 +2036,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
                       }),
                     )
                   : Text(
-                      '${l10n.yourLibrary} · ${l10n.songs2(songsAsync.value?.songs.length ?? 0)}',
+                      '${l10n.yourLibrary} · ${l10n.songsCount(songsAsync.value?.songs.length ?? 0)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),

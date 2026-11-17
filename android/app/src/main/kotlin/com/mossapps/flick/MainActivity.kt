@@ -759,6 +759,9 @@ class MainActivity: FlutterActivity() {
                         putExtra("title", title)
                         putExtra("artist", artist)
                         putExtra("albumArtPath", albumArtPath)
+                        call.argument<Map<String, String>>("controlLabels")?.let {
+                            putExtra("controlLabels", java.util.HashMap(it))
+                        }
                         putExtra("isPlaying", isPlaying)
                         putExtra("duration", duration)
                         putExtra("position", position)
@@ -814,6 +817,9 @@ class MainActivity: FlutterActivity() {
                         title?.let { putExtra("title", it) }
                         artist?.let { putExtra("artist", it) }
                         putExtra("albumArtPath", albumArtPath)
+                        call.argument<Map<String, String>>("controlLabels")?.let {
+                            putExtra("controlLabels", java.util.HashMap(it))
+                        }
                         isPlaying?.let { putExtra("isPlaying", it) }
                         duration?.let { putExtra("duration", it) }
                         position?.let { putExtra("position", it) }

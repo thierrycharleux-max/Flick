@@ -270,7 +270,7 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
     return [
       ?_albumGenre,
       if (_albumYear != null) '${_albumYear!}',
-      l10n.tracks2(widget.songs.length),
+      l10n.songsCount(widget.songs.length),
       _formattedTotalDuration,
     ].join(' · ');
   }
@@ -1012,7 +1012,7 @@ class _AlbumCard extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(
-              l10n.songs2(songCount),
+              l10n.songsCount(songCount),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: context.adaptiveTextTertiary,
               ),

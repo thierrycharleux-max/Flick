@@ -45,6 +45,7 @@ const Locale kBaybayinLocale = Locale.fromSubtags(
 /// `zh` through the language-code match below.
 const List<Locale> kSupportedLocales = <Locale>[
   Locale('en'),
+  Locale('fr'),
   Locale('zh', 'CN'),
   kFilipinoLocale,
 ];

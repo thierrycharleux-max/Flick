@@ -568,7 +568,7 @@ class _AlbumCardState extends State<_AlbumCard>
                                         ),
                                       ),
                                       child: Text(
-                                        l10n.tracks2(widget.songs.length),
+                                        l10n.songsCount(widget.songs.length),
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 11,

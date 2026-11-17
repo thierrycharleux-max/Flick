@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:flick/l10n/l10n.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/core/utils/dev_log.dart';
 
@@ -10,6 +11,19 @@ class NotificationService {
   NotificationService._internal();
 
   static const _channel = MethodChannel('com.mossapps.flick/player');
+
+  // Pass the selected app language to Android; its system locale may differ.
+  Map<String, String> get _controlLabels => {
+    'play': l10n.play,
+    'pause': l10n.pause,
+    'previous': l10n.previousSong,
+    'next': l10n.next,
+    'disconnect': l10n.disconnect,
+    'favorite': l10n.addToFavorites,
+    'unfavorite': l10n.removeFromFavorites,
+    'shuffleOn': '${l10n.shuffle} : ${l10n.enabled}',
+    'shuffleOff': '${l10n.shuffle} : ${l10n.off}',
+  };
 
   bool _isNotificationVisible = false;
   bool get isNotificationVisible => _isNotificationVisible;
@@ -90,6 +104,7 @@ class NotificationService {
         'title': song.title,
         'artist': song.artist,
         'albumArtPath': song.albumArt,
+        'controlLabels': _controlLabels,
         'isPlaying': isPlaying,
         'duration': duration?.inMilliseconds ?? 0,
         'position': position?.inMilliseconds ?? 0,
@@ -117,7 +132,10 @@ class NotificationService {
     if (!_isNotificationVisible) return;
 
     try {
-      final args = <String, dynamic>{'isPlaying': isPlaying};
+      final args = <String, dynamic>{
+        'isPlaying': isPlaying,
+        'controlLabels': _controlLabels,
+      };
       if (position != null) {
         args['position'] = position.inMilliseconds;
       }
@@ -145,6 +163,7 @@ class NotificationService {
         'title': song.title,
         'artist': song.artist,
         'albumArtPath': song.albumArt,
+        'controlLabels': _controlLabels,
         'isPlaying': isPlaying,
         'duration': duration?.inMilliseconds ?? 0,
         'position': position?.inMilliseconds ?? 0,

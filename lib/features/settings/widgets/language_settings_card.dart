@@ -25,6 +25,14 @@ class LanguageSettingsCard extends StatelessWidget {
             const SettingsDivider(),
             SelectionSetting(
               icon: LucideIcons.languages,
+              title: 'Français',
+              subtitle: 'Interface en français',
+              selected: selectedLocale?.languageCode == 'fr',
+              onTap: () => LocaleController.instance.select(const Locale('fr')),
+            ),
+            const SettingsDivider(),
+            SelectionSetting(
+              icon: LucideIcons.languages,
               title: '简体中文',
               subtitle: l10n.simplifiedChinese,
               selected: selectedLocale?.languageCode == 'zh',

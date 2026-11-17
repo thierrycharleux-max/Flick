@@ -51,6 +51,10 @@ class MusicNotificationService : Service() {
     private var isForegroundServiceStarted = false
     private var wakeLock: PowerManager.WakeLock? = null
 
+    private var controlLabels: Map<String, String> = emptyMap()
+
+    private fun label(key: String, fallback: String) = controlLabels[key] ?: fallback
+
     private var currentTitle: String = "Unknown"
     private var currentArtist: String = "Unknown Artist"
     private var currentAlbumArtPath: String? = null
@@ -194,6 +198,9 @@ class MusicNotificationService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         intent?.let {
+            @Suppress("DEPRECATION", "UNCHECKED_CAST")
+            val labels = it.getSerializableExtra("controlLabels") as? Map<String, String>
+            labels?.let { updated -> controlLabels = updated }
             if (it.hasExtra("title")) currentTitle = it.getStringExtra("title") ?: "Unknown"
             if (it.hasExtra("artist")) currentArtist = it.getStringExtra("artist") ?: "Unknown Artist"
             if (it.hasExtra("albumArtPath")) currentAlbumArtPath = it.getStringExtra("albumArtPath")
@@ -459,7 +466,7 @@ class MusicNotificationService : Service() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val shuffleIcon = if (isShuffleMode) R.drawable.ic_shuffle_on else R.drawable.ic_shuffle
-            val shuffleTitle = if (isShuffleMode) "Shuffle On" else "Shuffle Off"
+            val shuffleTitle = if (isShuffleMode) label("shuffleOn", "Shuffle On") else label("shuffleOff", "Shuffle Off")
             
             stateBuilder.addCustomAction(
                 PlaybackStateCompat.CustomAction.Builder(
@@ -470,7 +477,7 @@ class MusicNotificationService : Service() {
             )
 
             val favoriteIcon = if (isFavorite) R.drawable.ic_favorite else R.drawable.ic_favorite_border
-            val favoriteTitle = if (isFavorite) "Unfavorite" else "Favorite"
+            val favoriteTitle = if (isFavorite) label("unfavorite", "Unfavorite") else label("favorite", "Favorite")
             
             stateBuilder.addCustomAction(
                 PlaybackStateCompat.CustomAction.Builder(
@@ -600,14 +607,14 @@ class MusicNotificationService : Service() {
             val nextIntent = pendingBroadcast(102, ACTION_NEXT)
 
             val playPauseIcon = if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play
-            val playPauseText = if (isPlaying) "Pause" else "Play"
+            val playPauseText = if (isPlaying) label("pause", "Pause") else label("play", "Play")
 
             if (isCasting) {
                 val disconnectIntent = pendingBroadcast(105, ACTION_DISCONNECT_CAST)
                 builder
-                    .addAction(R.drawable.ic_previous, "Previous", prevIntent)
+                    .addAction(R.drawable.ic_previous, label("previous", "Previous"), prevIntent)
                     .addAction(playPauseIcon, playPauseText, playPauseIntent)
-                    .addAction(R.drawable.ic_cast, "Disconnect", disconnectIntent)
+                    .addAction(R.drawable.ic_cast, label("disconnect", "Disconnect"), disconnectIntent)
                     .setStyle(
                         MediaNotificationCompat.MediaStyle()
                             .setMediaSession(mediaSession.sessionToken)
@@ -616,9 +623,9 @@ class MusicNotificationService : Service() {
                     )
             } else {
                 builder
-                    .addAction(R.drawable.ic_previous, "Previous", prevIntent)
+                    .addAction(R.drawable.ic_previous, label("previous", "Previous"), prevIntent)
                     .addAction(playPauseIcon, playPauseText, playPauseIntent)
-                    .addAction(R.drawable.ic_next, "Next", nextIntent)
+                    .addAction(R.drawable.ic_next, label("next", "Next"), nextIntent)
                     .setStyle(
                         MediaNotificationCompat.MediaStyle()
                             .setMediaSession(mediaSession.sessionToken)
@@ -634,19 +641,19 @@ class MusicNotificationService : Service() {
             val shuffleIntent = pendingBroadcast(104, ACTION_SHUFFLE)
 
             val playPauseIcon = if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play
-            val playPauseText = if (isPlaying) "Pause" else "Play"
+            val playPauseText = if (isPlaying) label("pause", "Pause") else label("play", "Play")
             val favoriteIcon = if (isFavorite) R.drawable.ic_favorite else R.drawable.ic_favorite_border
-            val favoriteText = if (isFavorite) "Unfavorite" else "Favorite"
+            val favoriteText = if (isFavorite) label("unfavorite", "Unfavorite") else label("favorite", "Favorite")
             val shuffleIcon = if (isShuffleMode) R.drawable.ic_shuffle_on else R.drawable.ic_shuffle
-            val shuffleText = if (isShuffleMode) "Shuffle On" else "Shuffle Off"
+            val shuffleText = if (isShuffleMode) label("shuffleOn", "Shuffle On") else label("shuffleOff", "Shuffle Off")
 
             if (isCasting) {
                 val disconnectIntent = pendingBroadcast(105, ACTION_DISCONNECT_CAST)
                 builder
-                    .addAction(R.drawable.ic_previous, "Previous", prevIntent)
+                    .addAction(R.drawable.ic_previous, label("previous", "Previous"), prevIntent)
                     .addAction(playPauseIcon, playPauseText, playPauseIntent)
-                    .addAction(R.drawable.ic_next, "Next", nextIntent)
-                    .addAction(R.drawable.ic_cast, "Disconnect", disconnectIntent)
+                    .addAction(R.drawable.ic_next, label("next", "Next"), nextIntent)
+                    .addAction(R.drawable.ic_cast, label("disconnect", "Disconnect"), disconnectIntent)
                     .setStyle(
                         MediaNotificationCompat.MediaStyle()
                             .setMediaSession(mediaSession.sessionToken)
@@ -655,9 +662,9 @@ class MusicNotificationService : Service() {
                     )
             } else {
                 builder
-                    .addAction(R.drawable.ic_previous, "Previous", prevIntent)
+                    .addAction(R.drawable.ic_previous, label("previous", "Previous"), prevIntent)
                     .addAction(playPauseIcon, playPauseText, playPauseIntent)
-                    .addAction(R.drawable.ic_next, "Next", nextIntent)
+                    .addAction(R.drawable.ic_next, label("next", "Next"), nextIntent)
                     .addAction(shuffleIcon, shuffleText, shuffleIntent)
                     .addAction(favoriteIcon, favoriteText, favoriteIntent)
                     .setStyle(
