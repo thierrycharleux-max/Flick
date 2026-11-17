@@ -61,12 +61,20 @@ MockClient _pendingClient() =>
 
 // Interleaves real async time with fake-clock pumps so the lookup can walk
 // through its real disk/HTTP steps inside a widget test.
-Future<void> _drainRealAsync(WidgetTester tester, {int rounds = 8}) async {
-  for (var i = 0; i < rounds; i++) {
+Future<void> _drainRealAsync(
+  WidgetTester tester, {
+  int rounds = 8,
+  bool Function()? until,
+}) async {
+  // Wait for the observable result when disk persistence is involved. A fixed
+  // 400 ms budget flakes under full-suite contention, even with mocked HTTP.
+  final limit = until == null ? rounds : 60;
+  for (var i = 0; i < limit; i++) {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 50)),
     );
     await tester.pump();
+    if (until?.call() ?? false) return;
   }
 }
 
@@ -123,7 +131,10 @@ void main() {
   ) async {
     await tester.pumpWidget(_host(_definitiveMissClient()));
     await tester.pump(const Duration(milliseconds: 200));
-    await _drainRealAsync(tester);
+    await _drainRealAsync(
+      tester,
+      until: () => find.text('fallback').evaluate().isNotEmpty,
+    );
 
     expect(find.text('fallback'), findsOneWidget);
     expect(find.text('loading'), findsNothing);
