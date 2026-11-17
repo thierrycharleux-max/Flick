@@ -61,6 +61,16 @@ Timer coalescePlaybackDiagnosticsRefresh({
   return Timer(interval, refresh);
 }
 
+/// ExoPlayer's shared Android output has no Rust runtime to inspect.
+@visibleForTesting
+Future<Map<String, dynamic>?> loadAudioOutputDebugState({
+  required AudioEngineType activeEngine,
+  required Future<Map<String, dynamic>?> Function() readNativeState,
+}) async {
+  if (!activeEngine.usesRustBackend) return null;
+  return readNativeState();
+}
+
 /// Volume Control State Machine:
 ///
 /// Tier evaluation: [determineVolumeTier] — for the direct USB / DAP
@@ -554,8 +564,6 @@ class PlayerService {
   VoidCallback? _rustDurationListener;
   StreamSubscription<AudioInterruptionEvent>? _audioFocusSubscription;
   StreamSubscription<Map<Object?, Object?>>? _bluetoothDeviceEventSubscription;
-  StreamSubscription<void>? _usbDacDetachSubscription;
-  StreamSubscription<void>? _usbDacAttachSubscription;
   DateTime? _bluetoothDisconnectedAt;
   static const Duration _bluetoothReconnectWindow = Duration(seconds: 30);
   bool _audioInitialized = false;
@@ -788,12 +796,9 @@ class PlayerService {
     unawaited(_loadGaplessPlaybackPreference());
     unawaited(_loadDuckOnInterruptionPreference());
     unawaited(_loadCrossfadePreferences());
-    unawaited(_loadFloatingPlayerPreference());
     unawaited(_loadPriorityAnchorPreference());
     unawaited(_loadMotionArtPreference());
     _initBluetoothReconnectHandling();
-    _initUsbDacDisconnectHandling();
-    _initUsbDacAttachHandling();
     unawaited(_applyBluetoothCodecPrefs());
   }
 
@@ -810,28 +815,6 @@ class PlayerService {
             unawaited(_maybePauseOnBluetoothConnect());
           }
         });
-  }
-
-  void _initUsbDacDisconnectHandling() {
-    _usbDacDetachSubscription = _uac2Service.deviceDetachedEvents.listen((
-      _,
-    ) async {
-      _usbDacVolumeRestore.reset();
-      if (!isPlayingNotifier.value) return;
-      final enabled = await _appPreferencesService.getPauseOnUsbDacDisconnect();
-      if (enabled) pause();
-    });
-  }
-
-  void _initUsbDacAttachHandling() {
-    _usbDacAttachSubscription = _uac2Service.deviceAttachedEvents.listen((
-      _,
-    ) async {
-      _usbDacVolumeRestore.reset();
-      if (!isPlayingNotifier.value) return;
-      final enabled = await _appPreferencesService.getPauseOnUsbDacConnect();
-      if (enabled) pause();
-    });
   }
 
   /// Push the user's codec preference to the active A2DP device when codec
@@ -1147,23 +1130,13 @@ class PlayerService {
     }
   }
 
-  Future<void> _loadFloatingPlayerPreference() async {
-    final enabled = await _appPreferencesService.getFloatingPlayerEnabled();
-    if (enabled) {
-      await _activateFloatingPlayer();
-    }
-  }
-
   /// Activates the floating overlay. Returns `true` if the overlay could be
   /// shown (Android + overlay permission granted), `false` if permission is
   /// still required — in which case [requestFloatingPlayerPermission] should
   /// be called first.
   Future<bool> setFloatingPlayerEnabled(bool enabled) async {
-    if (enabled) {
-      return _activateFloatingPlayer();
-    }
     await _deactivateFloatingPlayer();
-    return true;
+    return !enabled;
   }
 
   Future<bool> requestFloatingPlayerPermission() async {
@@ -1173,15 +1146,6 @@ class PlayerService {
   Future<bool> canShowFloatingPlayer() async {
     if (!Platform.isAndroid) return false;
     return _floatingPlayerService.canDrawOverlays();
-  }
-
-  Future<bool> _activateFloatingPlayer() async {
-    if (!Platform.isAndroid) return false;
-    final canDraw = await _floatingPlayerService.canDrawOverlays();
-    if (!canDraw) return false;
-    _floatingPlayerActive = true;
-    await _showFloatingPlayerOverlay();
-    return true;
   }
 
   Future<void> _deactivateFloatingPlayer() async {
@@ -1206,9 +1170,8 @@ class PlayerService {
   Future<void> onAppPaused() async {
     if (!Platform.isAndroid) return;
     _appInForeground = false;
-    final enabled = await _appPreferencesService.getFloatingPlayerEnabled();
-    if (!enabled) return;
-    await _activateFloatingPlayer();
+    // No system-level overlay on the Erisin display.
+    await _deactivateFloatingPlayer();
   }
 
   Future<void> onAppResumed() async {
@@ -2624,7 +2587,10 @@ class PlayerService {
         ? AndroidAudioDeviceService.instance.deviceInfoNotifier.value
         : AndroidPlaybackDeviceInfo.unknown;
     final debugState = Platform.isAndroid
-        ? await _uac2Service.getAndroidPlaybackDebugState()
+        ? await loadAudioOutputDebugState(
+            activeEngine: activeEngineType,
+            readNativeState: _uac2Service.getAndroidPlaybackDebugState,
+          )
         : null;
     final rustAudioState = _mapValue(debugState?['rustAudioState']);
     final engineState = _mapValue(rustAudioState?['engine']);
@@ -2632,8 +2598,10 @@ class PlayerService {
     final dsdCallbackState = _mapValue(rustAudioState?['dsd_callback']);
     final managedOutputState = _mapValue(rustAudioState?['managed_output']);
     final deviceProfile = _mapValue(rustAudioState?['device_profile']);
-    final detectedDap = _isDetectedDapProfile(deviceProfile);
-    final detectedDapBrand = _detectedDapBrand(deviceProfile);
+    final fallbackDap = deviceProfile == null && deviceInfo.isLikelyDap;
+    final detectedDap = _isDetectedDapProfile(deviceProfile) || fallbackDap;
+    final detectedDapBrand = _detectedDapBrand(deviceProfile) ??
+        (fallbackDap ? deviceInfo.manufacturer : null);
 
     final outputSignature = _stringValue(
       engineState?['output_signature'] ?? engineState?['outputSignature'],
@@ -4777,21 +4745,11 @@ class PlayerService {
     AudioEngineType desiredEngine, {
     required String reason,
   }) async {
-    if (desiredEngine != AudioEngineType.usbDacExperimental ||
-        !Platform.isAndroid) {
-      return desiredEngine;
+    if (desiredEngine == AudioEngineType.usbDacExperimental) {
+      _debugLog('[Engine] Direct USB DAC disabled for Erisin ($reason)');
+      return AudioEngineType.normalAndroid;
     }
-
-    final deviceInfo = await AndroidAudioDeviceService.instance.refresh();
-    if (deviceInfo.hasUsbDac) {
-      return desiredEngine;
-    }
-
-    _debugLog(
-      '[Engine] USB engine requested without a USB DAC; '
-      'falling back to Android ($reason)',
-    );
-    return AudioEngineType.normalAndroid;
+    return desiredEngine;
   }
 
   Future<AudioEngineType> _ensureEngineReady(
@@ -6899,8 +6857,6 @@ class PlayerService {
     _stopHwVolumeHealthTimer();
     unawaited(_audioFocusSubscription?.cancel());
     unawaited(_bluetoothDeviceEventSubscription?.cancel());
-    unawaited(_usbDacDetachSubscription?.cancel());
-    unawaited(_usbDacAttachSubscription?.cancel());
     cancelSleepTimer();
     _notificationService.hideNotification();
     _floatingPlayerService.hide();

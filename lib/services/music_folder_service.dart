@@ -6,6 +6,7 @@ import 'package:flick/core/utils/uri_display_utils.dart';
 
 import 'permission_service.dart';
 import 'fingerprint_cache_service.dart';
+import 'scan_operation_gate.dart';
 import 'playback_cache_preferences_service.dart';
 import '../data/repositories/folder_repository.dart';
 import '../data/repositories/song_repository.dart';
@@ -127,9 +128,7 @@ class AudioFileInfo {
   factory AudioFileInfo.fromMap(Map<String, dynamic> map) {
     return AudioFileInfo(
       uri: map['uri'] as String,
-      name:
-          map['name'] as String? ??
-          '',
+      name: map['name'] as String? ?? '',
       size: (map['size'] as num?)?.toInt() ?? 0,
       lastModified: (map['lastModified'] as num?)?.toInt() ?? 0,
       mimeType: map['mimeType'] as String?,
@@ -237,13 +236,13 @@ class MusicFolder {
   });
 
   Map<String, dynamic> toJson() => {
-        'uri': uri,
-        'displayName': displayName,
-        'dateAdded': dateAdded.millisecondsSinceEpoch,
-        if (isRemovable != null) 'isRemovable': isRemovable,
-        if (mediaStoreVolume != null) 'mediaStoreVolume': mediaStoreVolume,
-        if (volumeState != null) 'volumeState': volumeState,
-      };
+    'uri': uri,
+    'displayName': displayName,
+    'dateAdded': dateAdded.millisecondsSinceEpoch,
+    if (isRemovable != null) 'isRemovable': isRemovable,
+    if (mediaStoreVolume != null) 'mediaStoreVolume': mediaStoreVolume,
+    if (volumeState != null) 'volumeState': volumeState,
+  };
 
   factory MusicFolder.fromJson(Map<String, dynamic> json) {
     return MusicFolder(
@@ -268,14 +267,20 @@ class FolderAlreadyExistsException implements Exception {
 /// Service for managing music folders and their contents.
 class MusicFolderService {
   static const _channel = MethodChannel('com.mossapps.flick/storage');
-  static const _mediastoreEventChannel = EventChannel('com.mossapps.flick/mediastore_events');
+  static const _mediastoreEventChannel = EventChannel(
+    'com.mossapps.flick/mediastore_events',
+  );
   static const _prefKey = 'music_folders';
 
   final PermissionService _permissionService;
+  final FolderRepository _folderRepository;
   final FileFingerprintCache _fingerprintCache = FileFingerprintCache();
 
-  MusicFolderService({PermissionService? permissionService})
-    : _permissionService = permissionService ?? PermissionService();
+  MusicFolderService({
+    PermissionService? permissionService,
+    FolderRepository? folderRepository,
+  }) : _permissionService = permissionService ?? PermissionService(),
+       _folderRepository = folderRepository ?? FolderRepository();
 
   /// Add a new music folder using the system folder picker.
   /// Returns the added folder, or null if cancelled.
@@ -284,21 +289,6 @@ class MusicFolderService {
     // Open folder picker
     final uri = await _permissionService.openFolderPicker();
     if (uri == null) return null;
-
-    // Check if folder already exists
-    final existingFolders = await getSavedFolders();
-    for (final folder in existingFolders) {
-      if (folder.uri == uri) {
-        throw FolderAlreadyExistsException(
-          l10n.thisFolderHasAlreadyBeenAdded,
-        );
-      }
-      if (foldersOverlap(folder.uri, uri)) {
-        throw FolderAlreadyExistsException(
-          'This folder overlaps with "${folder.displayName}". Keep only one root to avoid duplicate scans.',
-        );
-      }
-    }
 
     // Take persistable permission
     final success = await _permissionService.takePersistablePermission(uri);
@@ -322,9 +312,44 @@ class MusicFolderService {
       volumeState: storageInfo.state,
     );
 
-    // Save to preferences AND database
-    await _saveFolderToPrefs(folder);
-    await _saveFolderToDatabase(folder);
+    await libraryScanOperations.run(() async {
+      // Re-read after the picker: a startup scan may have finished meanwhile.
+      final existing = await getSavedFolders();
+      for (final saved in existing) {
+        if (isSameOrDescendantFolder(uri, saved.uri)) {
+          throw FolderAlreadyExistsException(
+            l10n.thisFolderHasAlreadyBeenAdded,
+          );
+        }
+      }
+      final replaced = existing
+          .where((saved) => isSameOrDescendantFolder(saved.uri, uri))
+          .toList();
+      final parent = FolderEntity()
+        ..uri = folder.uri
+        ..displayName = folder.displayName
+        ..dateAdded = folder.dateAdded
+        ..isRemovable = folder.isRemovable
+        ..mediaStoreVolume = folder.mediaStoreVolume
+        ..volumeState = folder.volumeState;
+      await _folderRepository.consolidateRoot(
+        parent,
+        replaced.map((entry) => entry.uri).toList(),
+        rawRoot: storageInfo.allFilesAccess ? storageInfo.fsPath : null,
+      );
+      // Keep the child grants: restored queues / imported playlists may still
+      // hold their old content URIs. No files or user favourites are removed.
+      final updated = [
+        for (final entry in existing)
+          if (!isSameOrDescendantFolder(entry.uri, uri)) entry,
+        folder,
+      ];
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(
+        _prefKey,
+        updated.map((entry) => jsonEncode(entry.toJson())).toList(),
+      );
+    });
 
     return folder;
   }
@@ -354,7 +379,7 @@ class MusicFolderService {
     // Overlay live volume state from the DB; prefs only captures add-time
     // state, while the scanner updates isRemovable/volumeState in the entity.
     final entities = {
-      for (final e in await FolderRepository().getAllFolders()) e.uri: e,
+      for (final e in await _folderRepository.getAllFolders()) e.uri: e,
     };
 
     final folders = <MusicFolder>[];
@@ -362,6 +387,11 @@ class MusicFolderService {
       try {
         final map = _parseJsonString(json);
         final folder = MusicFolder.fromJson(map);
+        if (entities.keys.any(
+          (root) =>
+              root != folder.uri && isSameOrDescendantFolder(folder.uri, root),
+        ))
+          continue;
         final entity = entities[folder.uri];
         if (entity != null) {
           folders.add(
@@ -380,6 +410,20 @@ class MusicFolderService {
         }
       } catch (e) {
         // Skip invalid entries
+      }
+    }
+    for (final entity in entities.values) {
+      if (!folders.any((folder) => folder.uri == entity.uri)) {
+        folders.add(
+          MusicFolder(
+            uri: entity.uri,
+            displayName: entity.displayName,
+            dateAdded: entity.dateAdded,
+            isRemovable: entity.isRemovable,
+            mediaStoreVolume: entity.mediaStoreVolume,
+            volumeState: entity.volumeState,
+          ),
+        );
       }
     }
     return folders;
@@ -633,7 +677,9 @@ class MusicFolderService {
           .map((map) => map.cast<String, dynamic>())
           .toList();
     } on PlatformException catch (e) {
-      throw StorageException('Failed to query MediaStore non-audio: ${e.message}');
+      throw StorageException(
+        'Failed to query MediaStore non-audio: ${e.message}',
+      );
     }
   }
 
@@ -649,7 +695,9 @@ class MusicFolderService {
       if (result == null) return [];
       return result.cast<String>();
     } on PlatformException catch (e) {
-      throw StorageException('Failed to check MediaStore deletions: ${e.message}');
+      throw StorageException(
+        'Failed to check MediaStore deletions: ${e.message}',
+      );
     }
   }
 
@@ -657,31 +705,6 @@ class MusicFolderService {
     return _mediastoreEventChannel.receiveBroadcastStream().map(
       (event) => (event as Map<dynamic, dynamic>).cast<String, dynamic>(),
     );
-  }
-
-  Future<void> _saveFolderToPrefs(MusicFolder folder) async {
-    final prefs = await SharedPreferences.getInstance();
-    final foldersJson = prefs.getStringList(_prefKey) ?? [];
-
-    // Check if folder already exists
-    final existingIndex = foldersJson.indexWhere((json) {
-      try {
-        final map = _parseJsonString(json);
-        return map['uri'] == folder.uri;
-      } catch (e) {
-        return false;
-      }
-    });
-
-    final folderJson = _toJsonString(folder.toJson());
-
-    if (existingIndex >= 0) {
-      foldersJson[existingIndex] = folderJson;
-    } else {
-      foldersJson.add(folderJson);
-    }
-
-    await prefs.setStringList(_prefKey, foldersJson);
   }
 
   Future<void> _removeFolderFromPrefs(String uri) async {
@@ -702,23 +725,8 @@ class MusicFolderService {
 
   // dart:convert handles booleans, nullables, and proper backslash escaping
   // (the prior hand-rolled code only escaped `"` and couldn't parse bool/null).
-  String _toJsonString(Map<String, dynamic> map) => jsonEncode(map);
-
   Map<String, dynamic> _parseJsonString(String json) =>
       jsonDecode(json) as Map<String, dynamic>;
-
-  Future<void> _saveFolderToDatabase(MusicFolder folder) async {
-    final repository = FolderRepository();
-    final entity = FolderEntity()
-      ..uri = folder.uri
-      ..displayName = folder.displayName
-      ..dateAdded = folder.dateAdded
-      ..songCount = 0
-      ..isRemovable = folder.isRemovable
-      ..mediaStoreVolume = folder.mediaStoreVolume
-      ..volumeState = folder.volumeState;
-    await repository.upsertFolder(entity);
-  }
 
   Future<void> _removeFolderFromDatabase(String uri) async {
     final repository = FolderRepository();
@@ -731,9 +739,10 @@ class MusicFolderService {
   }) async {
     try {
       return await _channel.invokeMethod<bool>('deleteDocument', {
-        'folderTreeUri': folderTreeUri,
-        'filePath': filePath,
-      }) ?? false;
+            'folderTreeUri': folderTreeUri,
+            'filePath': filePath,
+          }) ??
+          false;
     } catch (e) {
       devLog('deleteDocument failed: $e');
       return false;
@@ -743,8 +752,9 @@ class MusicFolderService {
   static Future<bool> removeFromMediaStore(String filePath) async {
     try {
       return await _channel.invokeMethod<bool>('removeFromMediaStore', {
-        'filePath': filePath,
-      }) ?? false;
+            'filePath': filePath,
+          }) ??
+          false;
     } catch (e) {
       devLog('removeFromMediaStore failed: $e');
       return false;

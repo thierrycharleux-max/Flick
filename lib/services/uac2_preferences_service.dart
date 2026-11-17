@@ -175,22 +175,15 @@ class Uac2PreferencesService {
   Future<void> setBitPerfectEnabled(bool enabled) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_keyBitPerfectEnabled, enabled);
-      await prefs.setBool(_keyExclusiveDacModeEnabled, enabled);
+      // This Erisin build does not use a direct USB DAC.
+      await prefs.setBool(_keyBitPerfectEnabled, false);
+      await prefs.setBool(_keyExclusiveDacModeEnabled, false);
     } catch (e) {
       devLog('Failed to save bit-perfect mode setting: $e');
     }
   }
 
-  Future<bool> getBitPerfectEnabled() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getBool(_keyBitPerfectEnabled) ?? false;
-    } catch (e) {
-      devLog('Failed to load bit-perfect mode setting: $e');
-      return false;
-    }
-  }
+  Future<bool> getBitPerfectEnabled() async => false;
 
   Future<void> setDapBitPerfectEnabled(bool enabled) async {
     try {
@@ -255,7 +248,10 @@ class Uac2PreferencesService {
   ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_keyAudioEnginePreference, preference.name);
+      final supported = preference == AudioEnginePreference.isochronousUsb
+          ? AudioEnginePreference.exoPlayer
+          : preference;
+      await prefs.setString(_keyAudioEnginePreference, supported.name);
     } catch (e) {
       devLog('Failed to save audio engine preference: $e');
     }
@@ -267,10 +263,13 @@ class Uac2PreferencesService {
       final value = prefs.getString(_keyAudioEnginePreference);
       if (value == null) return AudioEnginePreference.exoPlayer;
 
-      return AudioEnginePreference.values.firstWhere(
+      final saved = AudioEnginePreference.values.firstWhere(
         (engine) => engine.name == value,
         orElse: () => AudioEnginePreference.exoPlayer,
       );
+      return saved == AudioEnginePreference.isochronousUsb
+          ? AudioEnginePreference.exoPlayer
+          : saved;
     } catch (e) {
       devLog('Failed to load audio engine preference: $e');
       return AudioEnginePreference.exoPlayer;

@@ -101,6 +101,13 @@ class AudioSessionManager {
     bool initializeNewEngine = false,
     String reason = 'manual switch',
   }) async {
+    if (mode == AudioEngineType.usbDacExperimental) {
+      return switchMode(
+        AudioEngineType.normalAndroid,
+        initializeNewEngine: initializeNewEngine,
+        reason: 'direct USB DAC disabled for Erisin: $reason',
+      );
+    }
     final previousInitialized = initializedMode;
     final selectedChanged = selectedMode != mode;
     final needsInitialization =
@@ -292,7 +299,15 @@ class AudioSessionManager {
     final audioEnginePreference = await _preferencesService
         .getAudioEnginePreference();
     final capabilityInfo = await _uac2Service.getAndroidAudioCapabilityInfo();
-    final dapInfo = await _detectedAndroidDapInfo();
+    // The diagnostic snapshot reads Rust locks on Android's main thread.
+    // Only DAP/high-resolution candidates need its extra device profile.
+    final needsDapProfile = info.isLikelyDap ||
+        capabilityInfo.capabilities.contains(
+          rust_audio.AudioCapabilityType.hiResInternal,
+        );
+    final ({bool detected, String? brand}) dapInfo = needsDapProfile
+        ? await _detectedAndroidDapInfo()
+        : (detected: false, brand: null);
     capabilityInfoNotifier.value = capabilityInfo;
     final capabilityReportsUsb = capabilityInfo.capabilities.contains(
       rust_audio.AudioCapabilityType.usbDac,

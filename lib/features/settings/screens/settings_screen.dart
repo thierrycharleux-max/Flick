@@ -181,7 +181,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             iconBg: const Color(0xFF6F4A2D),
                             iconFg: const Color(0xFFFFC48B),
                             title: l10n.englishForFilipino.audio,
-                            subtitle: l10n.uac2AndEqualizer,
+                            subtitle: l10n.englishForFilipino.equalizer,
                             onTap: () =>
                                 _navigate(context, const AudioSettingsScreen()),
                           ),

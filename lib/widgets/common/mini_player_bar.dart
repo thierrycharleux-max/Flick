@@ -26,6 +26,7 @@ class MiniPlayerBar extends StatelessWidget {
   final bool separated;
   final bool collapsed;
   final bool enableHero;
+  final bool compact;
   final int songChangeDirection;
   final Widget? visualizer;
   final VoidCallback? onOpen;
@@ -48,6 +49,7 @@ class MiniPlayerBar extends StatelessWidget {
     this.separated = false,
     this.collapsed = false,
     this.enableHero = true,
+    this.compact = false,
     this.songChangeDirection = 0,
     this.visualizer,
     this.onOpen,
@@ -93,10 +95,12 @@ class MiniPlayerBar extends StatelessWidget {
             config.showArtwork &&
             width >= controlsWidth + titleWidth + height + 16;
         return Padding(
-          padding: EdgeInsets.only(
-            top: 12,
-            bottom: separated ? config.navigationGap : (collapsed ? 12 : 8),
-          ),
+          padding: compact
+              ? EdgeInsets.zero
+              : EdgeInsets.only(
+                  top: 12,
+                  bottom: separated ? config.navigationGap : (collapsed ? 12 : 8),
+                ),
           child: Center(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,

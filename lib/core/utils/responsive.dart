@@ -68,8 +68,11 @@ class Responsive {
   /// Uses 375 (iPhone SE/8) as the base width.
   static double scale(BuildContext context, double value) {
     const baseWidth = 375.0;
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final scaleFactor = (screenWidth / baseWidth).clamp(0.85, 1.5);
+    final size = MediaQuery.sizeOf(context);
+    // A wide, shallow car screen must not enlarge phone controls by 50%.
+    final landscape = size.width > size.height;
+    final reference = landscape ? size.height : size.width;
+    final scaleFactor = (reference / baseWidth).clamp(0.85, landscape ? 1.0 : 1.5);
     return value * scaleFactor;
   }
 

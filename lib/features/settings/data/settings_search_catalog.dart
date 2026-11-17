@@ -23,8 +23,6 @@ import '../screens/player_layout_settings_screen.dart';
 import '../screens/privacy_policy_screen.dart';
 import '../screens/queue_settings_screen.dart';
 import '../screens/support_flick_screen.dart';
-import '../screens/uac2_preferences_screen.dart';
-import '../screens/uac2_settings_screen.dart';
 import '../screens/ui_customization_settings_screen.dart';
 import '../screens/visualizer_settings_screen.dart';
 import '../screens/widget_settings_screen.dart';
@@ -138,13 +136,11 @@ List<SettingsSearchPage> buildSettingsSearchCatalog() {
             l10n.duckOnNotifications,
             keywords: 'interruption audio focus',
           ),
-          SettingsSearchItem('floatingMiniPlayer', l10n.floatingMiniPlayer),
         ]),
         _section('display', l10n.display, [
           ('songViewOrbital', l10n.songViewOrbital),
           ('songViewList', l10n.songViewList),
           ('bottomBarAlwaysVisible', l10n.bottomBarAlwaysVisible),
-          ('floatingIsland', l10n.floatingIsland),
           ('immersiveFullViewTimer', l10n.immersiveFullViewTimer),
         ]),
         _section('fastIndexScrolling', l10n.fastIndexScrolling, [
@@ -255,8 +251,6 @@ List<SettingsSearchPage> buildSettingsSearchCatalog() {
           ('pauseOnDisconnect', l10n.pauseOnDisconnect),
           ('pauseOnBluetoothConnect', l10n.pauseOnBluetoothConnect),
           ('resumeOnReconnect', l10n.resumeOnReconnect),
-          ('pauseOnUsbDacAttach', l10n.pauseOnUsbDacAttach),
-          ('pauseOnUsbDacDetach', l10n.pauseOnUsbDacDetach),
         ]),
         _section('devices', l10n.devices, [
           ('automatic', l10n.automatic),
@@ -372,8 +366,6 @@ List<SettingsSearchPage> buildSettingsSearchCatalog() {
           ('yourPlaylists', l10n.yourPlaylists),
           ('browseMore', l10n.browseMore),
           ('engineSelector', l10n.engineSelector),
-          ('usbVolumeOnHome', l10n.usbVolumeOnHome),
-          ('usbVolumeInSettings', l10n.usbVolumeInSettings),
         ]),
         _section('detailScreens', l10n.detailScreens, [
           ('moreFromArtist2', l10n.moreFromArtist2),
@@ -593,54 +585,6 @@ List<SettingsSearchPage> buildSettingsSearchCatalog() {
           ('showGlow', l10n.showGlow),
           ('resetToDefaults', l10n.resetToDefaults),
         ]),
-      ],
-    ),
-    page(
-      'uac2_settings',
-      l10n.usbAudioUac2,
-      media,
-      LucideIcons.usb,
-      (_) => const Uac2SettingsScreen(),
-      keywords: 'dac usb devices capabilities native dsd dop volume',
-    ),
-    page(
-      'uac2_preferences',
-      l10n.uac2Preferences,
-      media,
-      LucideIcons.slidersHorizontal,
-      (id) => Uac2PreferencesScreen(initialSection: id),
-      keywords: 'usb dac dap audio engine preferences',
-      sections: [
-        _section(
-          'audioFormat',
-          l10n.audioFormat,
-          [
-            ('audioFormat', l10n.audioFormat),
-            ('formatStrategy', l10n.formatStrategy),
-            ('customFormat', l10n.customFormat),
-          ],
-          keywords:
-              'sample rate bit depth channels highest quality compatibility pcm',
-        ),
-        _section('experimental', l10n.experimental, [
-          ('dsdOutputMode', l10n.dsdOutputMode),
-          ('dapNativeBitOrder', l10n.dapNativeBitOrder),
-          ('dapNativeByteGrouping', l10n.dapNativeByteGrouping),
-          ('hzTuning', l10n.hzTuning),
-        ], keywords: 'dsd native dop 432hz tuning'),
-        _section('advanced', l10n.advanced, [
-          ('playbackEngine', l10n.playbackEngine),
-          ('androidAudioApi', l10n.androidAudioApi),
-          ('developerMode', l10n.developerMode),
-          ('bitPerfectUsbDac', l10n.bitPerfectUsbDac),
-          ('bitPerfectDapInternal', l10n.bitPerfectDapInternal),
-          ('autoBitPerfectForUsbDacs', l10n.autoBitPerfectForUsbDacs),
-          ('resetDeclinedUsbDacs', l10n.resetDeclinedUsbDacs),
-          ('stopUsbOnQuit', l10n.stopUsbOnQuit),
-          ('resetPreferences', l10n.resetPreferences),
-          ('currentPlaybackMode', l10n.currentPlaybackMode),
-        ], keywords: 'aaudio oboe opensl exclusive isochronous diagnostics'),
-        _section('volume', l10n.volume, []),
       ],
     ),
     page(

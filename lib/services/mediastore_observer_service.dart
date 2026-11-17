@@ -1,98 +1,77 @@
 import 'dart:async';
-import 'music_folder_service.dart';
+
 import 'library_scanner_service.dart';
 import 'package:flick/core/utils/dev_log.dart';
 
+/// One quick reconciliation per app launch. Lifecycle and media events do not
+/// rescan: the user requested updates only when opening the app.
 class MediaStoreObserverService {
-  final MusicFolderService _musicFolderService;
   final Stream<ScanProgress> Function() _scanAllFolders;
-  final DateTime Function() _clock;
+  final bool Function() _isScanBusy;
+  final void Function()? _onLibraryChanged;
+  final Duration _startupDelay;
+  final Duration _busyRetryDelay;
 
-  StreamSubscription? _subscription;
-  Timer? _debounce;
-  bool _isProcessing = false;
-  bool _pendingRescan = false;
-  DateTime? _pausedAt;
+  Timer? _startupTimer;
+  bool _started = false;
+  bool _hasScanned = false;
 
   MediaStoreObserverService({
-    MusicFolderService? musicFolderService,
     Stream<ScanProgress> Function()? scanAllFolders,
-    DateTime Function()? clock,
-  })  : _musicFolderService = musicFolderService ?? MusicFolderService(),
-        _scanAllFolders =
-            scanAllFolders ?? (() => LibraryScannerService().scanAllFolders()),
-        _clock = clock ?? DateTime.now;
+    bool Function()? isScanBusy,
+    void Function()? onLibraryChanged,
+    Duration startupDelay = const Duration(seconds: 2),
+    Duration busyRetryDelay = const Duration(seconds: 3),
+  }) : _scanAllFolders =
+           scanAllFolders ??
+           (() => LibraryScannerService().scanAllFolders(sequential: true)),
+       _isScanBusy = isScanBusy ?? (() => LibraryScannerService.isScanRunning),
+       _onLibraryChanged = onLibraryChanged,
+       _startupDelay = startupDelay,
+       _busyRetryDelay = busyRetryDelay;
 
   void start() {
-    try {
-      _subscription = _musicFolderService.mediaStoreChanges.listen(
-        _onChange,
-        onError: (e) {
-          devLog('MediaStoreObserver error: $e');
-        },
-      );
-    } catch (e) {
-      devLog('MediaStoreObserver failed to start: $e');
-    }
+    if (_started) return;
+    _started = true;
+    if (!_hasScanned) _schedule(_startupDelay);
   }
 
   void stop() {
-    _subscription?.cancel();
-    _subscription = null;
-    _debounce?.cancel();
-    _debounce = null;
+    _started = false;
+    _startupTimer?.cancel();
+    _startupTimer = null;
   }
 
-  void _onChange(Map<String, dynamic> event) {
-    _debounce?.cancel();
-    if (_isProcessing) {
-      _pendingRescan = true;
-      return;
-    }
-    _debounce = Timer(const Duration(seconds: 3), _processChange);
+  // Returning from another app is not a new launch.
+  void notifyPaused() {}
+  void notifyResumed() {}
+
+  void _schedule(Duration delay) {
+    _startupTimer?.cancel();
+    _startupTimer = Timer(delay, () => unawaited(_scanOnLaunch()));
   }
 
-  void notifyPaused() {
-    _pausedAt = _clock();
-  }
-
-  void notifyResumed() {
-    final pausedAt = _pausedAt;
-    _pausedAt = null;
-    // ponytail: skip catch-up rescan after brief app switches (jank, #210);
-    // the MediaStore change stream still covers real changes while away.
-    if (pausedAt != null &&
-        _clock().difference(pausedAt) < const Duration(minutes: 1)) {
+  Future<void> _scanOnLaunch() async {
+    _startupTimer = null;
+    if (!_started || _hasScanned) return;
+    if (_isScanBusy()) {
+      _schedule(_busyRetryDelay);
       return;
     }
-    _debounce?.cancel();
-    if (_isProcessing) {
-      _pendingRescan = true;
-      return;
-    }
-    _debounce = Timer(const Duration(seconds: 1), _processChange);
-  }
-
-  Future<void> _processChange() async {
-    if (_isProcessing) {
-      _pendingRescan = true;
-      return;
-    }
-    _isProcessing = true;
-    _pendingRescan = false;
-
+    _hasScanned = true;
     try {
-      await for (final _ in _scanAllFolders()) {}
-      devLog('MediaStoreObserver: auto-rescan complete');
-    } catch (e) {
-      devLog('MediaStoreObserver rescan failed: $e');
-    } finally {
-      _isProcessing = false;
-      if (_pendingRescan) {
-        _pendingRescan = false;
-        _debounce?.cancel();
-        _debounce = Timer(const Duration(seconds: 3), _processChange);
+      var changed = false;
+      await for (final progress in _scanAllFolders()) {
+        changed =
+            changed ||
+            progress.newSongs > 0 ||
+            progress.modifiedSongs > 0 ||
+            progress.deletedSongs > 0;
       }
+      if (_started && changed) _onLibraryChanged?.call();
+      devLog('Launch library quick scan complete');
+    } catch (e) {
+      devLog('Launch library quick scan failed: $e');
     }
   }
 }

@@ -9,11 +9,13 @@ import 'package:flick/widgets/common/mini_player_bar.dart';
 class EmbeddedMiniPlayer extends ConsumerStatefulWidget {
   final bool collapsed;
   final bool separated;
+  final bool compact;
 
   const EmbeddedMiniPlayer({
     super.key,
     this.collapsed = false,
     this.separated = false,
+    this.compact = false,
   });
 
   @override
@@ -53,9 +55,18 @@ class _EmbeddedMiniPlayerState extends ConsumerState<EmbeddedMiniPlayer> {
       _songChangeDirection = 0;
     }
     final prefs = ref.watch(appPreferencesProvider);
-    final config = ref.watch(miniPlayerConfigProvider);
+    final savedConfig = ref.watch(miniPlayerConfigProvider);
+    final config = widget.compact
+        ? savedConfig.copyWith(
+            height: 52,
+            textScale: savedConfig.textScale.clamp(0.8, 1.1),
+            showPrevious: false,
+            showNext: false,
+          )
+        : savedConfig;
     return MiniPlayerBar(
       config: config,
+      compact: widget.compact,
       songId: song.id,
       title: song.title,
       artist: song.artist,

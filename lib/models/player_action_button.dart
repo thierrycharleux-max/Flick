@@ -92,7 +92,8 @@ extension PlayerActionButtonX on PlayerActionButton {
       case 'share':
         return PlayerActionButton.share;
       case 'usb_volume':
-        return PlayerActionButton.usbVolume;
+        // Upgrade the old USB-only shortcut to the normal volume control.
+        return PlayerActionButton.volume;
       case 'equalizer':
         return PlayerActionButton.equalizer;
       case 'volume':

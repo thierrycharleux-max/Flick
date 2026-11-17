@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auto_library_sync_service.dart';
 import '../services/mediastore_observer_service.dart';
 import '../services/background_metadata_service.dart';
+import '../services/library_scanner_service.dart';
+import 'library_scanner_provider.dart';
+import 'songs_provider.dart';
 
 /// Single shared [BackgroundMetadataService] instance (Android only; null
 /// elsewhere). Exposed so the "warm up" notice can trigger an immediate
@@ -17,8 +20,22 @@ final backgroundMetadataServiceProvider = Provider<BackgroundMetadataService?>((
 });
 
 final autoLibrarySyncServiceProvider = Provider<AutoLibrarySyncService>((ref) {
-  final observerService = Platform.isAndroid ? MediaStoreObserverService() : null;
-  final backgroundMetadataService = ref.watch(backgroundMetadataServiceProvider);
+  final scanner = ref.read(libraryScannerServiceProvider);
+  final observerService = Platform.isAndroid
+      ? MediaStoreObserverService(
+          scanAllFolders: () => scanner.scanAllFolders(sequential: true),
+          isScanBusy: () => LibraryScannerService.isScanRunning,
+          onLibraryChanged: () {
+            ref.invalidate(songsProvider);
+            ref.invalidate(songsByAlbumProvider);
+            ref.invalidate(songsByArtistProvider);
+            ref.invalidate(musicFoldersProvider);
+          },
+        )
+      : null;
+  final backgroundMetadataService = ref.watch(
+    backgroundMetadataServiceProvider,
+  );
   final service = AutoLibrarySyncService(
     observerService: observerService,
     backgroundMetadataService: backgroundMetadataService,

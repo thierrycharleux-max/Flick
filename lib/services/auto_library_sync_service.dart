@@ -12,14 +12,14 @@ class AutoLibrarySyncService {
   AutoLibrarySyncService({
     MediaStoreObserverService? observerService,
     BackgroundMetadataService? backgroundMetadataService,
-  })  : _observerService = observerService,
-        _backgroundMetadataService = backgroundMetadataService;
+  }) : _observerService = observerService,
+       _backgroundMetadataService = backgroundMetadataService;
 
   void start() {
     if (_isRunning) return;
 
     _isRunning = true;
-    devLog('Auto library sync started (event-driven)');
+    devLog('Auto library sync started (one quick scan at launch)');
 
     if (Platform.isAndroid && _observerService != null) {
       _observerService.start();

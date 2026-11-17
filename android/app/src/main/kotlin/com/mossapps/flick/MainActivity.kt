@@ -64,9 +64,14 @@ import androidx.mediarouter.media.MediaRouter
 import android.provider.OpenableColumns
 import android.provider.Settings
 import android.util.Log
+import android.view.ViewTreeObserver
 import android.os.PowerManager
 import android.os.storage.StorageManager
 import android.os.storage.StorageVolume
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.documentfile.provider.DocumentFile
 import com.mossapps.flick.audiofx.JustAudioProcessingController
 import io.flutter.embedding.android.FlutterActivity
@@ -178,6 +183,23 @@ class MainActivity: FlutterActivity() {
     private var castController: CastController? = null
     private var castEventSink: EventChannel.EventSink? = null
     private var dlnaRouteProvider: DlnaRouteProvider? = null
+    private val fullscreenHandler = Handler(Looper.getMainLooper())
+    private var fullscreenKeyboardVisible = false
+    private val restoreFullscreen = Runnable {
+        if (!isFinishing && !isDestroyed && hasWindowFocus()) {
+            applyErisinFullscreen()
+        }
+    }
+    private val fullscreenLayoutListener = ViewTreeObserver.OnGlobalLayoutListener {
+        val keyboardVisible = isFullscreenKeyboardVisible()
+        if (keyboardVisible) {
+            fullscreenHandler.removeCallbacks(restoreFullscreen)
+        } else if (fullscreenKeyboardVisible) {
+            // Android 9/10 prevent hiding system bars for one second after IME dismissal.
+            scheduleFullscreenRestore()
+        }
+        fullscreenKeyboardVisible = keyboardVisible
+    }
 
     // Load the Rust shared library before calling into native startup hooks.
     init {
@@ -187,6 +209,8 @@ class MainActivity: FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         super.onCreate(savedInstanceState)
+        window.decorView.viewTreeObserver.addOnGlobalLayoutListener(fullscreenLayoutListener)
+        applyErisinFullscreen()
 
         if (!nativeInitRustAndroidContext(applicationContext)) {
             Log.e("Flick", "Failed to initialize Rust Android audio context")
@@ -195,10 +219,44 @@ class MainActivity: FlutterActivity() {
         }
 
         handleExternalPlaybackIntent(intent)
-        handleUsbAttachIntent(intent)
-        maybeRequestPermissionForConnectedUsbAudioDevices(reason = "activity create")
         registerBluetoothAclReceiver()
         registerAudioDeviceCallback()
+    }
+
+    override fun onPostResume() {
+        super.onPostResume()
+        // Flutter restores its own overlays during super.onPostResume().
+        applyErisinFullscreen()
+        scheduleFullscreenRestore()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        fullscreenHandler.removeCallbacks(restoreFullscreen)
+        if (hasFocus) {
+            applyErisinFullscreen()
+            scheduleFullscreenRestore()
+        }
+    }
+
+    private fun isFullscreenKeyboardVisible(): Boolean =
+        ViewCompat.getRootWindowInsets(window.decorView)
+            ?.isVisible(WindowInsetsCompat.Type.ime()) == true
+
+    private fun applyErisinFullscreen() {
+        // Leave Android navigation available while typing, then restore after the IME closes.
+        if (isFullscreenKeyboardVisible()) return
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
+    private fun scheduleFullscreenRestore() {
+        fullscreenHandler.removeCallbacks(restoreFullscreen)
+        fullscreenHandler.postDelayed(restoreFullscreen, 1200L)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -206,8 +264,6 @@ class MainActivity: FlutterActivity() {
         setIntent(intent)
         dispatchWidgetIntent(intent)
         handleExternalPlaybackIntent(intent)
-        handleUsbAttachIntent(intent)
-        maybeRequestPermissionForConnectedUsbAudioDevices(reason = "new intent")
     }
 
     override fun provideFlutterEngine(context: android.content.Context): FlutterEngine? {
@@ -853,14 +909,8 @@ class MainActivity: FlutterActivity() {
                     val devices = listUac2Devices(refresh)
                     result.success(devices)
                 }
-                "requestPermission" -> {
-                    val deviceName = call.argument<String>("deviceName")
-                    if (deviceName != null) {
-                        requestUac2Permission(deviceName, result)
-                    } else {
-                        result.error("INVALID_ARGUMENT", "deviceName is required", null)
-                    }
-                }
+                // Direct USB DAC access is unavailable in the Erisin build.
+                "requestPermission" -> result.success(false)
                 "hasPermission" -> {
                     val deviceName = call.argument<String>("deviceName")
                     if (deviceName != null) {
@@ -934,15 +984,7 @@ class MainActivity: FlutterActivity() {
                 "verifyHardwareVolumeHealth" -> {
                     result.success(verifyHardwareVolumeHealth())
                 }
-                "activateDirectUsb" -> {
-                    val deviceName = call.argument<String>("deviceName")
-                    val restoreVolume = call.argument<Double>("restoreVolume")
-                    if (deviceName != null) {
-                        result.success(activateDirectUsb(deviceName, restoreVolume))
-                    } else {
-                        result.error("INVALID_ARGUMENT", "deviceName is required", null)
-                    }
-                }
+                "activateDirectUsb" -> result.success(false)
                 "queueDirectUsbHardwareVolumeRestore" -> {
                     val deviceName = call.argument<String>("deviceName")
                     val restoreVolume = call.argument<Double>("restoreVolume")
@@ -1260,7 +1302,6 @@ class MainActivity: FlutterActivity() {
             }
         }
         registerUsbHotplugReceiver()
-        maybeRequestPermissionForConnectedUsbAudioDevices(reason = "flutter engine configured")
         // Register volume change observer
         registerVolumeContentObserver()
 
@@ -4173,77 +4214,6 @@ class MainActivity: FlutterActivity() {
         return "class=${usbInterface.interfaceClass},subclass=$subclass,alt=${usbInterface.alternateSetting}"
     }
 
-    private fun handleUsbAttachIntent(intent: Intent?) {
-        if (intent?.action != UsbManager.ACTION_USB_DEVICE_ATTACHED) {
-            return
-        }
-
-        val attachedDevice: UsbDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            intent.getParcelableExtra<UsbDevice>(UsbManager.EXTRA_DEVICE)
-        }
-        maybeRequestPermissionForAttachedDevice(attachedDevice)
-    }
-
-    private fun maybeRequestPermissionForAttachedDevice(
-        device: UsbDevice?,
-        reason: String = "attach broadcast",
-    ) {
-        if (device == null || !isLikelyUsbAudioDevice(device)) {
-            return
-        }
-
-        val usbManager = getSystemService(Context.USB_SERVICE) as? UsbManager ?: return
-        if (usbManager.hasPermission(device)) {
-            return
-        }
-        if (pendingUac2PermissionResult != null || pendingUac2PermissionCallback != null) {
-            return
-        }
-        if (!promptedUsbPermissionDeviceNames.add(device.deviceName)) {
-            return
-        }
-
-        Log.i(
-            "UAC2",
-            "Requesting USB permission for DAC candidate: " +
-                "${device.productName ?: device.deviceName} ($reason)",
-        )
-        requestUac2PermissionInternal(
-            device.deviceName,
-            callback = { granted ->
-                if (granted) {
-                    uac2DeviceCache = null
-                    uac2Channel?.invokeMethod("onDeviceAttached", null)
-                    audioDeviceChannel?.invokeMethod("onPlaybackDevicesChanged", null)
-                }
-            },
-        )
-    }
-
-    private fun maybeRequestPermissionForConnectedUsbAudioDevices(reason: String) {
-        val usbManager = getSystemService(Context.USB_SERVICE) as? UsbManager ?: return
-        val routeLabelHint = currentRouteLabelHint()
-        val candidates = usbManager.deviceList.values.filter { device ->
-            isLikelyUsbAudioDevice(device, routeLabelHint)
-        }
-        if (candidates.isEmpty()) {
-            return
-        }
-
-        val pendingCandidate = candidates.firstOrNull { device ->
-            !usbManager.hasPermission(device) &&
-                !promptedUsbPermissionDeviceNames.contains(device.deviceName)
-        } ?: return
-
-        maybeRequestPermissionForAttachedDevice(
-            pendingCandidate,
-            reason = reason,
-        )
-    }
-
     private fun setExclusiveDacMode(enabled: Boolean): Boolean {
         exclusiveDacModeEnabled = enabled
         val rustUpdated = if (activeDirectUsbDeviceName != null) {
@@ -4996,13 +4966,6 @@ class MainActivity: FlutterActivity() {
                     UsbManager.ACTION_USB_DEVICE_ATTACHED -> {
                         // Invalidate cache on device attach
                         uac2DeviceCache = null
-                        val attachedDevice: UsbDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
-                        } else {
-                            @Suppress("DEPRECATION")
-                            intent.getParcelableExtra<UsbDevice>(UsbManager.EXTRA_DEVICE)
-                        }
-                        maybeRequestPermissionForAttachedDevice(attachedDevice)
                         // Notify Flutter if channel is available
                         uac2Channel?.invokeMethod("onDeviceAttached", null)
                         audioDeviceChannel?.invokeMethod("onPlaybackDevicesChanged", null)
@@ -5454,6 +5417,8 @@ class MainActivity: FlutterActivity() {
     }
 
     override fun onDestroy() {
+        fullscreenHandler.removeCallbacks(restoreFullscreen)
+        window.decorView.viewTreeObserver.removeOnGlobalLayoutListener(fullscreenLayoutListener)
         super.onDestroy()
         audioDeviceCallback?.let {
             try {

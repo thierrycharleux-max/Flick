@@ -18,6 +18,7 @@ class FlickNavBar extends StatefulWidget {
   final NavBarConfig config;
   final bool collapsed;
   final bool separateMiniPlayer;
+  final bool compact;
 
   const FlickNavBar({
     super.key,
@@ -29,6 +30,7 @@ class FlickNavBar extends StatefulWidget {
     this.miniPlayerWidget,
     this.collapsed = false,
     this.separateMiniPlayer = false,
+    this.compact = false,
   });
 
   @override
@@ -44,6 +46,32 @@ class _FlickNavBarState extends State<FlickNavBar> {
     final verticalPadding = context.scaleSize(AppConstants.spacingSm);
 
     final borderRadius = BorderRadius.circular(context.scaleSize(20));
+
+    if (widget.compact) {
+      return Padding(
+        padding: EdgeInsets.only(
+          left: MediaQuery.paddingOf(context).left + 8,
+          right: MediaQuery.paddingOf(context).right + 8,
+          bottom: bottomPadding,
+        ),
+        child: Container(
+          key: const ValueKey('erisin_bottom_bar'),
+          height: widget.showMiniPlayer ? 72 : 56,
+          decoration: BoxDecoration(
+            color: AppColors.surface.withValues(alpha: 0.98),
+            border: Border.all(color: AppColors.glassBorder),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              if (widget.showMiniPlayer && widget.miniPlayerWidget != null)
+                Expanded(flex: 5, child: widget.miniPlayerWidget!),
+              Expanded(flex: 5, child: _buildNavigationRow(context, buttons)),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Padding(
       padding: EdgeInsets.only(
@@ -151,7 +179,9 @@ class _FlickNavBarState extends State<FlickNavBar> {
       child: Padding(
         padding: EdgeInsets.symmetric(
           horizontal: itemPadding,
-          vertical: context.scaleSize(AppConstants.spacingXs) * widget.config.barSizeFactor,
+          vertical: widget.compact
+              ? 2
+              : context.scaleSize(AppConstants.spacingXs) * widget.config.barSizeFactor,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -167,6 +197,7 @@ class _FlickNavBarState extends State<FlickNavBar> {
                       button: button,
                       isSelected: widget.currentIndex == button.pageIndex,
                       config: widget.config,
+                      compact: widget.compact,
                       onTap: () => widget.onTap(button.pageIndex),
                     ),
                   ),
@@ -502,12 +533,14 @@ class _FlickNavItem extends StatefulWidget {
   final NavBarButton button;
   final bool isSelected;
   final NavBarConfig config;
+  final bool compact;
   final VoidCallback onTap;
 
   const _FlickNavItem({
     required this.button,
     required this.isSelected,
     required this.config,
+    required this.compact,
     required this.onTap,
   });
 
@@ -591,11 +624,19 @@ class _FlickNavItemState extends State<_FlickNavItem>
     final horizontalPaddingFactor = widget.config.buttonSpacingFactor;
     final barSizeFactor = widget.config.barSizeFactor;
 
-    final iconSize = context.responsiveIcon(AppConstants.iconSizeSm) * iconFactor;
-    final fontSize = context.responsiveText(8.0) * barSizeFactor;
-    final horizontalPadding = context.scaleSize(AppConstants.spacingMd) * horizontalPaddingFactor;
-    final verticalPadding = context.scaleSize(AppConstants.spacingXs) * barSizeFactor;
-    final spacing = context.scaleSize(2.0) * spacerFactor;
+    final iconSize = widget.compact
+        ? 24.0
+        : context.responsiveIcon(AppConstants.iconSizeSm) * iconFactor;
+    final fontSize = widget.compact
+        ? 11.0
+        : context.responsiveText(8.0) * barSizeFactor;
+    final horizontalPadding = widget.compact
+        ? 2.0
+        : context.scaleSize(AppConstants.spacingMd) * horizontalPaddingFactor;
+    final verticalPadding = widget.compact
+        ? 2.0
+        : context.scaleSize(AppConstants.spacingXs) * barSizeFactor;
+    final spacing = widget.compact ? 2.0 : context.scaleSize(2.0) * spacerFactor;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,

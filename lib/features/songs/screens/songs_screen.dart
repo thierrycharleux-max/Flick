@@ -78,6 +78,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
   final ScrollController _albumGridScrollController = ScrollController();
   final OrbitScrollController _orbitScrollController = OrbitScrollController();
   String _searchQuery = '';
+  bool _landscapeSearchOpen = false;
   List<Song> _cachedSongs = [];
   List<Song> _cachedDisplaySongs = [];
   String _selectedFastToken = 'A';
@@ -147,7 +148,8 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
         songsAsync.value?.sortOption ?? SongSortOption.albumArtist;
     final isAlbumMode = sortOption == SongSortOption.album;
     final shouldReserveOrbitBottomSpace =
-        viewMode != SongViewMode.list && navBarVisible && !isAlbumMode;
+        viewMode != SongViewMode.list && navBarVisible && !isAlbumMode &&
+        MediaQuery.orientationOf(context) != Orientation.landscape;
 
     return Stack(
       clipBehavior: Clip.none,
@@ -175,7 +177,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
               ),
 
               // Search Bar (hidden when Search tab is in the nav bar)
-              if (!searchInNavBar) ...[
+              if (!searchInNavBar && MediaQuery.orientationOf(context) != Orientation.landscape) ...[
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppConstants.spacingLg,
@@ -390,7 +392,8 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
 
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final railTopInset = AppConstants.spacingSm;
-    final railBottomInset = viewMode == SongViewMode.list && isBottomBarVisible
+    final railBottomInset = MediaQuery.orientationOf(context) != Orientation.landscape &&
+            viewMode == SongViewMode.list && isBottomBarVisible
         ? AppConstants.navBarHeight + 90 + AppConstants.spacingSm
         : AppConstants.spacingSm;
 
@@ -505,9 +508,11 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
         builder: (context, constraints) {
           final totalItemHeight = songs.length * _listItemExtent;
           final needsScroll = totalItemHeight > constraints.maxHeight;
-          final bottomPadding = needsScroll
-              ? AppConstants.navBarHeight + 120
-              : AppConstants.navBarHeight + AppConstants.spacingLg;
+          final bottomPadding = MediaQuery.orientationOf(context) == Orientation.landscape
+              ? AppConstants.spacingLg
+              : needsScroll
+                  ? AppConstants.navBarHeight + 120
+                  : AppConstants.navBarHeight + AppConstants.spacingLg;
           return ListView.builder(
             controller: _listScrollController,
             itemExtent: _listItemExtent,
@@ -1908,6 +1913,9 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
     final currentFilter =
         songsAsync.value?.fileTypeFilter ?? SongFileTypeFilter.all;
     final isAlbumMode = currentSort == SongSortOption.album;
+    if (MediaQuery.orientationOf(context) == Orientation.landscape) {
+      return _buildLandscapeHeader(songsAsync, currentSort, currentFilter);
+    }
     final buttonGap = context.isCompact
         ? AppConstants.spacingXxs
         : AppConstants.spacingSm;
@@ -1991,6 +1999,70 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLandscapeHeader(
+    AsyncValue<SongsState> songsAsync,
+    SongSortOption sort,
+    SongFileTypeFilter filter,
+  ) {
+    return SizedBox(
+      key: const ValueKey('erisin_library_toolbar'),
+      height: 56,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: _landscapeSearchOpen
+                  ? TextField(
+                      key: const ValueKey('erisin_library_search'),
+                      controller: _searchController,
+                      autofocus: true,
+                      textInputAction: TextInputAction.search,
+                      style: const TextStyle(fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: l10n.searchSongsArtists,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                        border: const OutlineInputBorder(),
+                      ),
+                      onChanged: (value) => setState(() {
+                        _searchQuery = value.toLowerCase();
+                        _selectedIndex = 0;
+                        _lastSyncedSong = null;
+                      }),
+                    )
+                  : Text(
+                      '${l10n.yourLibrary} · ${l10n.songs2(songsAsync.value?.songs.length ?? 0)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+            ),
+            IconButton(
+              tooltip: _landscapeSearchOpen ? l10n.close : l10n.search,
+              icon: Icon(_landscapeSearchOpen ? LucideIcons.x : LucideIcons.search),
+              onPressed: () => setState(() {
+                _landscapeSearchOpen = !_landscapeSearchOpen;
+                if (!_landscapeSearchOpen) {
+                  _searchController.clear();
+                  _searchQuery = '';
+                  _lastSyncedSong = null;
+                  FocusScope.of(context).unfocus();
+                }
+              }),
+            ),
+            IconButton(icon: const Icon(LucideIcons.checkCheck),
+              onPressed: () => _enterSelectionMode(null)),
+            IconButton(icon: const Icon(LucideIcons.shuffle),
+              onPressed: () => _shufflePlayFromLibrary(songsAsync)),
+            IconButton(icon: const Icon(Icons.sort_rounded),
+              onPressed: () => _showSortFilterSheet(context, sort, filter)),
+          ],
+        ),
       ),
     );
   }

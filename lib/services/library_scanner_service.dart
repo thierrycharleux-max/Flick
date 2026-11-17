@@ -20,6 +20,7 @@ import '../services/album_art_import_service.dart';
 import '../services/apple_music/apple_music_settings.dart';
 import '../services/apple_music/auto_metadata_enricher.dart';
 import '../services/artwork_backfill_tracker.dart';
+import '../services/scan_operation_gate.dart';
 import '../src/rust/api/scanner.dart'; // Rust bridge
 import 'package:flick/core/utils/dev_log.dart';
 import 'package:flick/l10n/l10n.dart';
@@ -149,8 +150,33 @@ class ScanProgress {
   }
 }
 
+/// Allows manual callers to stop consuming completed progress without cancelling.
+@visibleForTesting
+Stream<ScanProgress> forwardScanProgress({
+  required Stream<ScanProgress> source,
+  required VoidCallback onInterrupted,
+}) async* {
+  var completed = false;
+  try {
+    await for (final progress in source) {
+      // Manual callers intentionally break at this event to show the
+      // artwork/Skip stage. Record completion before handing it to them.
+      if (progress.isComplete) completed = true;
+      yield progress;
+    }
+    completed = true;
+  } finally {
+    if (!completed) onInterrupted();
+  }
+}
+
 /// Service for scanning music folders and indexing songs in the database.
 class LibraryScannerService {
+  static final ScanOperationGate _scanOperations = libraryScanOperations;
+
+  /// Includes work queued by another scanner instance.
+  static bool get isScanRunning => _scanOperations.isRunning;
+
   final SongRepository _songRepository;
   final FolderRepository _folderRepository;
   final MusicFolderService _musicFolderService;
@@ -159,6 +185,8 @@ class LibraryScannerService {
   final FileFingerprintCache _fingerprintCache = FileFingerprintCache();
 
   bool _isCancelled = false;
+  int _cancellationGeneration = 0;
+  final Set<Future<void>> _pendingScanTasks = {};
   final Set<String> _currentlyScanning = {};
   final Map<String, Future<void>> _folderFinalization = {};
   final ArtworkBackfillTracker _artworkBackfill = ArtworkBackfillTracker();
@@ -205,6 +233,7 @@ class LibraryScannerService {
 
   void cancelScan() {
     _isCancelled = true;
+    _cancellationGeneration++;
     // A detached preload pass outlives the scan stream; stop it too or it
     // keeps decoding (and holding the artwork gate) against the next scan.
     AudioPreloadService.instance.cancel();
@@ -295,11 +324,32 @@ class LibraryScannerService {
     String folderUri,
     String displayName, {
     ScanMode mode = ScanMode.quick,
-  }) async* {
-    // Cancellation is sticky for the whole operation; only entry points may
-    // clear it, so a Stop can't be wiped by a folder scan that starts late.
-    _isCancelled = false;
-    yield* _scanFolderInternal(folderUri, displayName, mode: mode);
+  }) => _serializeScanOperation(
+    () => _scanFolderInternal(folderUri, displayName, mode: mode),
+  );
+
+  Stream<ScanProgress> _serializeScanOperation(
+    Stream<ScanProgress> Function() operation,
+  ) async* {
+    final cancellationGeneration = _cancellationGeneration;
+    yield* _scanOperations.runStream(() {
+      if (cancellationGeneration != _cancellationGeneration) {
+        return const Stream<ScanProgress>.empty();
+      }
+      // Only the active operation can clear cancellation. A queued operation
+      // cancelled before its turn must never restart work.
+      _isCancelled = false;
+      return forwardScanProgress(
+        source: operation(),
+        onInterrupted: cancelScan,
+      );
+    }, afterOperation: _awaitPendingScanTasks);
+  }
+
+  Future<void> _awaitPendingScanTasks() async {
+    while (_pendingScanTasks.isNotEmpty) {
+      await Future.wait(_pendingScanTasks.toList(growable: false));
+    }
   }
 
   Stream<ScanProgress> _scanFolderInternal(
@@ -532,35 +582,41 @@ class LibraryScannerService {
         // only when tiles are tapped. Runs unpaused — tiles may resolve
         // concurrently; _inFlightResolutions dedupes. The tracker lets the
         // manual scan session wait for covers before reporting "done".
-        final task = _runDetachedScanTask(displayName, 'artwork resolve', () async {
-          // CUE/log finalization upserts entities it loaded before artwork
-          // existed; wait for it so it cannot clobber freshly resolved art
-          // and so CUE-created tracks get resolved too.
-          final pending = _folderFinalization[folderUri];
-          if (pending != null) {
-            await pending;
-          }
-          final songs = await _songRepository.getSongEntitiesByFolder(
-            folderUri,
-          );
-          await AlbumArtService.instance.resolveMissingArtwork(
-            songs,
-            onProgress: (completed, total) => _artworkBackfill.setProgress(
-              scanKey,
-              artworkBackfillToken,
-              completed,
-              total,
-            ),
-          );
-          try {
-            if (await AppleMusicSettings().autoEnrichEnabled()) {
-              final models = await _songRepository.getSongsByFolder(folderUri);
-              await AutoMetadataEnricher.instance.enrichMissing(models);
+        final task = _runDetachedScanTask(
+          displayName,
+          'artwork resolve',
+          () async {
+            // CUE/log finalization upserts entities it loaded before artwork
+            // existed; wait for it so it cannot clobber freshly resolved art
+            // and so CUE-created tracks get resolved too.
+            final pending = _folderFinalization[folderUri];
+            if (pending != null) {
+              await pending;
             }
-          } catch (error) {
-            devLog('Auto metadata enrichment failed for $folderUri: $error');
-          }
-        });
+            final songs = await _songRepository.getSongEntitiesByFolder(
+              folderUri,
+            );
+            await AlbumArtService.instance.resolveMissingArtwork(
+              songs,
+              onProgress: (completed, total) => _artworkBackfill.setProgress(
+                scanKey,
+                artworkBackfillToken,
+                completed,
+                total,
+              ),
+            );
+            try {
+              if (await AppleMusicSettings().autoEnrichEnabled()) {
+                final models = await _songRepository.getSongsByFolder(
+                  folderUri,
+                );
+                await AutoMetadataEnricher.instance.enrichMissing(models);
+              }
+            } catch (error) {
+              devLog('Auto metadata enrichment failed for $folderUri: $error');
+            }
+          },
+        );
         unawaited(
           task.whenComplete(
             () => _artworkBackfill.finish(scanKey, artworkBackfillToken),
@@ -792,9 +848,7 @@ class LibraryScannerService {
         ..accurateRip = existing?.accurateRip
         ..metadataComplete =
             (existing?.metadataComplete ?? false) || !needsSparseMetadata
-        ..metadataVersion = needsSparseMetadata
-            ? 0
-            : existing.metadataVersion;
+        ..metadataVersion = needsSparseMetadata ? 0 : existing.metadataVersion;
 
       if (existing != null) {
         song.id = existing.id;
@@ -1412,6 +1466,12 @@ class LibraryScannerService {
     }
 
     if (_isCancelled) return;
+    if (fastScanFiles.isEmpty) {
+      // SAF also returns an empty walk when a tree is inaccessible. Without
+      // evidence that the root was readable, retain the existing catalogue.
+      devLog('Empty SAF scan for $displayName; retaining existing songs');
+      return;
+    }
 
     // 2. Diff Logic
     final existingSongs = await _songRepository.getSongEntitiesByFolder(
@@ -1884,10 +1944,12 @@ class LibraryScannerService {
     // Full mode re-reads every file and skips the fingerprint shortcuts,
     // including the CUE/log unchanged checks below. A single stale metadata
     // row also forces this folder's rescan so track totals backfill once.
-    final forceFull = mode == ScanMode.full || needsMetadataBackfill(
-      existingSongs,
-      excludedSongs: filteredExistingSongs,
-    );
+    final forceFull =
+        mode == ScanMode.full ||
+        needsMetadataBackfill(
+          existingSongs,
+          excludedSongs: filteredExistingSongs,
+        );
 
     // Load fingerprint cache — supplements DB with faster lookup
     final cachedFingerprints = forceFull
@@ -2370,8 +2432,17 @@ class LibraryScannerService {
     );
   }
 
-  Stream<ScanProgress> scanAllFolders({ScanMode mode = ScanMode.quick}) async* {
-    _isCancelled = false;
+  Stream<ScanProgress> scanAllFolders({
+    ScanMode mode = ScanMode.quick,
+    bool sequential = false,
+  }) => _serializeScanOperation(
+    () => _scanAllFoldersInternal(mode: mode, sequential: sequential),
+  );
+
+  Stream<ScanProgress> _scanAllFoldersInternal({
+    required ScanMode mode,
+    required bool sequential,
+  }) async* {
     final totalStopwatch = Stopwatch()..start();
     final folders = await _folderRepository.getAllFolders();
     final scanPlan = _deduplicateFoldersForScan(folders);
@@ -2379,10 +2450,60 @@ class LibraryScannerService {
 
     final foldersTotal = scanPlan.length;
 
+    if (sequential) {
+      var foldersCompleted = 0;
+      var newSongs = 0;
+      var modifiedSongs = 0;
+      var deletedSongs = 0;
+      String? scanEngine;
+      for (final folder in scanPlan) {
+        if (_isCancelled) break;
+        ScanProgress? last;
+        await for (final progress in _scanFolderInternal(
+          folder.uri,
+          folder.displayName,
+          mode: mode,
+        )) {
+          last = progress;
+          scanEngine ??= progress.scanEngine;
+          yield progress.copyWith(
+            newSongs: newSongs + progress.newSongs,
+            modifiedSongs: modifiedSongs + progress.modifiedSongs,
+            deletedSongs: deletedSongs + progress.deletedSongs,
+            foldersTotal: foldersTotal,
+            foldersCompleted: foldersCompleted,
+            isComplete: false,
+          );
+        }
+        await _awaitPendingScanTasks();
+        newSongs += last?.newSongs ?? 0;
+        modifiedSongs += last?.modifiedSongs ?? 0;
+        deletedSongs += last?.deletedSongs ?? 0;
+        foldersCompleted++;
+      }
+      if (!_isCancelled) {
+        final finalCount = await _songRepository.getSongCount();
+        _logScanTiming('all folders', 'scan all total', totalStopwatch.elapsed);
+        yield ScanProgress(
+          songsFound: finalCount,
+          totalFiles: 0,
+          scanEngine: scanEngine,
+          newSongs: newSongs,
+          modifiedSongs: modifiedSongs,
+          deletedSongs: deletedSongs,
+          foldersTotal: foldersTotal,
+          foldersCompleted: foldersCompleted,
+          isComplete: true,
+        );
+      }
+      return;
+    }
+
     // Scan all deduplicated folders concurrently, but publish one aggregated
     // progress event per folder update so the UI never bounces between
     // per-folder counters.
     final controller = StreamController<ScanProgress>();
+    final subscriptions = <StreamSubscription<ScanProgress>>[];
     final folderStates = <String, FolderScanProgress>{};
     var started = 0;
     var completed = 0;
@@ -2426,62 +2547,77 @@ class LibraryScannerService {
       );
     }
 
-    for (final folder in scanPlan) {
-      if (_isCancelled) break;
-      started++;
+    try {
+      for (final folder in scanPlan) {
+        if (_isCancelled) break;
+        started++;
 
-      _scanFolderInternal(folder.uri, folder.displayName, mode: mode).listen(
-        (progress) {
-          folderStates[folder.uri] = FolderScanProgress(
-            displayName: folder.displayName,
-            songsFound: progress.songsFound,
-            totalFiles: progress.totalFiles,
-            filesProcessed: progress.filesProcessed,
-            currentFile: progress.currentFile,
-            phase: progress.phase,
-            newSongs: progress.newSongs,
-            modifiedSongs: progress.modifiedSongs,
-            deletedSongs: progress.deletedSongs,
-            isComplete: progress.isComplete,
-            unavailable: progress.unavailable,
-          );
-          aggScanEngine ??= progress.scanEngine;
-          lastPhase = progress.phase;
-          lastCurrentFile = progress.currentFile;
-          emitAggregate();
-        },
-        onDone: () {
-          completed++;
-          final state = folderStates[folder.uri];
-          if (state != null && state.totalFiles > 0) {
-            folderStates[folder.uri] = FolderScanProgress(
-              displayName: state.displayName,
-              songsFound: state.songsFound,
-              totalFiles: state.totalFiles,
-              filesProcessed: state.totalFiles,
-              phase: state.phase,
-              newSongs: state.newSongs,
-              modifiedSongs: state.modifiedSongs,
-              deletedSongs: state.deletedSongs,
-              isComplete: true,
-              unavailable: state.unavailable,
-            );
-          }
-          emitAggregate();
-          // Close only when every attached folder stream finished; `started`
-          // (not `running`) keeps a fast first folder from closing early.
-          if (completed == started && !controller.isClosed) {
-            controller.close();
-          }
-        },
-        onError: (e) {
-          if (!controller.isClosed) controller.addError(e);
-        },
-        cancelOnError: false,
+        subscriptions.add(
+          _scanFolderInternal(
+            folder.uri,
+            folder.displayName,
+            mode: mode,
+          ).listen(
+            (progress) {
+              folderStates[folder.uri] = FolderScanProgress(
+                displayName: folder.displayName,
+                songsFound: progress.songsFound,
+                totalFiles: progress.totalFiles,
+                filesProcessed: progress.filesProcessed,
+                currentFile: progress.currentFile,
+                phase: progress.phase,
+                newSongs: progress.newSongs,
+                modifiedSongs: progress.modifiedSongs,
+                deletedSongs: progress.deletedSongs,
+                isComplete: progress.isComplete,
+                unavailable: progress.unavailable,
+              );
+              aggScanEngine ??= progress.scanEngine;
+              lastPhase = progress.phase;
+              lastCurrentFile = progress.currentFile;
+              emitAggregate();
+            },
+            onDone: () {
+              completed++;
+              final state = folderStates[folder.uri];
+              if (state != null && state.totalFiles > 0) {
+                folderStates[folder.uri] = FolderScanProgress(
+                  displayName: state.displayName,
+                  songsFound: state.songsFound,
+                  totalFiles: state.totalFiles,
+                  filesProcessed: state.totalFiles,
+                  phase: state.phase,
+                  newSongs: state.newSongs,
+                  modifiedSongs: state.modifiedSongs,
+                  deletedSongs: state.deletedSongs,
+                  isComplete: true,
+                  unavailable: state.unavailable,
+                );
+              }
+              emitAggregate();
+              // Close only when every attached folder stream finished; `started`
+              // (not `running`) keeps a fast first folder from closing early.
+              if (completed == started && !controller.isClosed) {
+                controller.close();
+              }
+            },
+            onError: (e) {
+              if (!controller.isClosed) controller.addError(e);
+            },
+            cancelOnError: false,
+          ),
+        );
+      }
+
+      if (started == 0) unawaited(controller.close());
+      yield* controller.stream;
+    } finally {
+      if (completed < started) _isCancelled = true;
+      await Future.wait(
+        subscriptions.map((subscription) => subscription.cancel()),
       );
+      if (!controller.isClosed) unawaited(controller.close());
     }
-
-    yield* controller.stream;
 
     if (!_isCancelled) {
       final finalCount = await _songRepository.getSongCount();
@@ -2502,7 +2638,16 @@ class LibraryScannerService {
 
   /// Efficiently check for externally deleted files across all folders.
   /// Only removes songs whose file paths no longer exist on disk.
-  Future<void> refreshDeletions() async {
+  Future<void> refreshDeletions() {
+    final cancellationGeneration = _cancellationGeneration;
+    return _scanOperations.run(() async {
+      if (cancellationGeneration != _cancellationGeneration) return;
+      _isCancelled = false;
+      await _refreshDeletionsInternal();
+    });
+  }
+
+  Future<void> _refreshDeletionsInternal() async {
     final stopwatch = Stopwatch()..start();
     final folders = await _folderRepository.getAllFolders();
     if (folders.isEmpty) return;
@@ -2510,6 +2655,7 @@ class LibraryScannerService {
     final scanPreferences = await _scanPreferencesService.getPreferences();
 
     for (final folder in folders) {
+      if (_isCancelled) break;
       try {
         await _refreshDeletionsForFolder(
           folder.uri,
@@ -2634,6 +2780,14 @@ class LibraryScannerService {
       filterNonMusicFilesAndFolders:
           scanPreferences.filterNonMusicFilesAndFolders,
     );
+    if (fastScanFiles.isEmpty) {
+      // An inaccessible tree and a genuinely empty tree are indistinguishable
+      // here. Removing the saved folder remains the explicit way to clear it.
+      devLog(
+        'Empty SAF deletion check for $folderUri; retaining existing songs',
+      );
+      return [];
+    }
     final scannedUris = fastScanFiles.map((f) => f.uri).toSet();
     // The SAF walk only speaks in SAF document URIs, so it can only vouch
     // for rows keyed the same way. Raw-path rows belong to the filesystem
@@ -2800,12 +2954,13 @@ class LibraryScannerService {
       final needsTotals = meta?.trackTotal == null || meta?.discTotal == null;
       if (retrieverSolved && !needsTotals) continue;
 
-      if (!needsTotals && !shouldRustRetryMetadata(
-        extension: _extensionOfUri(rawPathByUri?[uri] ?? uri),
-        hasMetadata: meta != null,
-        hasSampleRate: meta?.sampleRate != null,
-        hasDuration: meta?.duration != null,
-      )) {
+      if (!needsTotals &&
+          !shouldRustRetryMetadata(
+            extension: _extensionOfUri(rawPathByUri?[uri] ?? uri),
+            hasMetadata: meta != null,
+            hasSampleRate: meta?.sampleRate != null,
+            hasDuration: meta?.duration != null,
+          )) {
         continue;
       }
 
@@ -2923,7 +3078,8 @@ class LibraryScannerService {
         _logScanTiming(displayName, label, stopwatch.elapsed);
       }
     }();
-    unawaited(future);
+    _pendingScanTasks.add(future);
+    unawaited(future.whenComplete(() => _pendingScanTasks.remove(future)));
     return future;
   }
 
@@ -3265,7 +3421,8 @@ class LibraryScannerService {
   }) {
     final excluded = excludedSongs.toSet();
     return songs.any(
-      (song) => !excluded.contains(song) &&
+      (song) =>
+          !excluded.contains(song) &&
           song.metadataVersion < kCurrentTrackMetadataVersion,
     );
   }

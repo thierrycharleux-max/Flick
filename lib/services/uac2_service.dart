@@ -600,6 +600,8 @@ class Uac2Service {
     bool? bitPerfectOverride,
     bool throwOnVolumeRestoreFailure = false,
   }) async {
+    // USB storage remains available; direct audio device activation does not.
+    if (Platform.isAndroid) return false;
     try {
       final resolvedDevice = Platform.isAndroid
           ? await _resolveConnectedAndroidDevice(device)
@@ -2278,6 +2280,8 @@ Future<void> stopPriorityAnchor() async {
   }
 
   Future<bool> setBitPerfectEnabled(bool enabled, {bool persist = true}) {
+    // Refuse activation, including values saved by an older APK.
+    if (enabled) return Future.value(false);
     final result = _bitPerfectChangeQueue.then(
       (_) => _setBitPerfectEnabled(enabled, persist: persist),
     );

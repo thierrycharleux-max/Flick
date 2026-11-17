@@ -1,10 +1,20 @@
 # Flick
 
-> **Fork Erisin ES8189C — Android, écran 1024×600.** Cette version utilise le
-> package distinct `com.mossapps.flick.erisin`, un affichage paysage et un lecteur
-> en deux zones. Voir la [documentation Erisin](docs/ERISIN_ES8189C.md) pour
-> compiler, installer et connaître les validations effectuées. Les liens Play
-> Store et les versions amont ci-dessous concernent le projet Flick original.
+> **Fork Erisin ES8189C — Android 9, écran 1024×600.** Version actuelle :
+> `0.23.0-erisin.4+34`, package distinct `com.mossapps.flick.erisin`.
+> Grande pochette à gauche, titre / album / artistes à droite, commandes visibles
+> en paysage. La bibliothèque s'actualise au lancement ; la racine d'une carte
+> microSD peut remplacer les dossiers d'albums déjà ajoutés sans effacer les favoris.
+> L'accès direct aux DAC USB est désactivé dans cette adaptation ; la lecture
+> utilise la sortie gérée par Android et le stockage USB reste utilisable.
+>
+> Voir la [documentation Erisin](docs/ERISIN_ES8189C.md) pour les changements,
+> l'installation et les validations. La compilation locale et les essais sur
+> émulateur sont vérifiés ; le fonctionnement sur l'Erisin physique reste à confirmer.
+> [Compiler un APK avec GitHub Actions](https://github.com/thierrycharleux-max/Flick/actions/workflows/build-erisin-apk.yml).
+> Les liens Play Store et les fonctionnalités amont présentés ci-dessous
+> concernent le [projet Flick original](https://github.com/moss-apps/Flick).
+
 
 <p align="center">
   <img src="docs/app_screenshots/flick_banner.png" alt="Flick Banner" width="100%">

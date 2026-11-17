@@ -8,7 +8,6 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/models/audio_engine_type.dart';
 import 'package:flick/features/settings/screens/equalizer_screen.dart';
-import 'package:flick/features/settings/screens/uac2_settings_screen.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/services/android_audio_device_service.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
@@ -48,19 +47,6 @@ class _AudioSettingsScreenState extends ConsumerState<AudioSettingsScreen> {
           SettingsSectionHeader(l10n.englishForFilipino.audio, sectionId: 'audio'),
           SettingsCard(
             children: [
-              NavigationSetting(
-                icon: LucideIcons.usb,
-                title: l10n.englishForFilipino.usbAudioUac2,
-                subtitle: l10n.configureUsbDacAmpDevices,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const Uac2SettingsScreen(),
-                    ),
-                  );
-                },
-              ),
-              const SettingsDivider(),
               NavigationSetting(
                 icon: LucideIcons.slidersHorizontal,
                 title: l10n.englishForFilipino.equalizer,

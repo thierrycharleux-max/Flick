@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flick/widgets/common/flick_snackbar.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -83,20 +82,6 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
                 _DuckOnInterruptionTile(playerService: playerService),
                 const SettingsDivider(),
               ],
-              ToggleSetting(
-                icon: LucideIcons.pictureInPicture2,
-                title: l10n.englishForFilipino.floatingMiniPlayer,
-                subtitle: appPrefs.floatingPlayerEnabled
-                    ? l10n.aDraggableOverlayShowsWhileUsing
-                    : l10n.showASystemOverlayMiniPlayer,
-                value: appPrefs.floatingPlayerEnabled,
-                onChanged: (value) => _onFloatingPlayerToggled(
-                  context,
-                  ref,
-                  playerService,
-                  value,
-                ),
-              ),
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
@@ -151,20 +136,6 @@ class PlaybackDisplaySettingsScreen extends ConsumerWidget {
                   ref
                       .read(navBarAlwaysVisibleProvider.notifier)
                       .setAlwaysVisible(value);
-                },
-              ),
-              const SettingsDivider(),
-              ToggleSetting(
-                icon: LucideIcons.circleDot,
-                title: l10n.englishForFilipino.floatingIsland,
-                subtitle: appPrefs.floatingIslandEnabled
-                    ? l10n.showTheFloatingMiniPlayerPill
-                    : l10n.hideTheFloatingMiniPlayerPill,
-                value: appPrefs.floatingIslandEnabled,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setFloatingIslandEnabled(value);
                 },
               ),
               const SettingsDivider(),
@@ -283,35 +254,5 @@ class _GaplessPlaybackTile extends StatelessWidget {
         );
       },
     );
-  }
-}
-
-Future<void> _onFloatingPlayerToggled(
-  BuildContext context,
-  WidgetRef ref,
-  PlayerService playerService,
-  bool value,
-) async {
-  final messenger = ScaffoldMessenger.of(context);
-  if (value) {
-    final canShow = await playerService.canShowFloatingPlayer();
-    if (!canShow) {
-      final granted = await playerService.requestFloatingPlayerPermission();
-      if (!granted) {
-        messenger.showFlickSnackBar(
-          SnackBar(
-            content: Text(
-              l10n.overlayPermissionIsRequiredToShow,
-            ),
-          ),
-        );
-        return;
-      }
-    }
-    await playerService.setFloatingPlayerEnabled(true);
-    ref.read(appPreferencesProvider.notifier).setFloatingPlayerEnabled(true);
-  } else {
-    await playerService.setFloatingPlayerEnabled(false);
-    ref.read(appPreferencesProvider.notifier).setFloatingPlayerEnabled(false);
   }
 }

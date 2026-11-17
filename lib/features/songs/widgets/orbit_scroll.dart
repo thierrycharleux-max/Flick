@@ -122,6 +122,7 @@ class _OrbitScrollState extends State<OrbitScroll>
   // Cache for transform calculations (bounded)
   final Map<int, _Position> _positionCache = {};
   final Map<int, _ItemTransform> _transformCache = {};
+  Size? _lastLayoutSize;
   static const int _maxCacheSize = 120;
 
   // ponytail: recompute each build (~9 ints). Was a static final keyed on
@@ -388,48 +389,65 @@ class _OrbitScrollState extends State<OrbitScroll>
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenSize = MediaQuery.sizeOf(context);
+        final landscape = screenSize.width > screenSize.height;
+        // In landscape, position cards in the actual space left by the header.
+        final size = landscape ? constraints.biggest : screenSize;
+        if (_lastLayoutSize != size) {
+          _positionCache.clear();
+          _transformCache.clear();
+          _lastLayoutSize = size;
+        }
+        final maxScale = landscape
+            ? (size.height / 130.0).clamp(0.0, 1.25)
+            : 1.25;
+        final halfCard = math.min(
+          size.height / 2,
+          65 * math.min(widget.selectedScale, maxScale),
+        );
+        final orbitRadius = size.width * widget.radiusRatio;
+        final orbitCenterX = size.width * widget.centerOffsetRatio;
+        final rawCenterY = size.height * widget.centerYRatio;
+        final orbitCenterY = landscape
+            ? rawCenterY.clamp(halfCard, size.height - halfCard).toDouble()
+            : rawCenterY;
 
-    // Calculate orbit parameters
-    final orbitRadius = size.width * widget.radiusRatio;
-    final orbitCenterX = size.width * widget.centerOffsetRatio;
-    final orbitCenterY = size.height * widget.centerYRatio;
-
-    return GestureDetector(
-      onVerticalDragStart: _onVerticalDragStart,
-      onVerticalDragUpdate: _onVerticalDragUpdate,
-      onVerticalDragEnd: _onVerticalDragEnd,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: double.infinity,
-        height: double.infinity,
-        color: Colors.transparent,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            // Background glow
-            if (widget.showGlow)
-              _buildSelectionGlow(orbitCenterX, orbitCenterY, orbitRadius),
-
-            // Path
-            if (widget.showPath)
-              _buildOrbitPath(orbitCenterX, orbitCenterY, orbitRadius),
-
-            // Songs — only rebuilds when scroll offset changes
-            ValueListenableBuilder<double>(
-              valueListenable: _scrollOffset,
-              builder: (context, _, __) {
-                return SizedBox.expand(
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: _buildSongItems(orbitCenterX, orbitCenterY, orbitRadius),
+        final orbit = GestureDetector(
+          onVerticalDragStart: _onVerticalDragStart,
+          onVerticalDragUpdate: _onVerticalDragUpdate,
+          onVerticalDragEnd: _onVerticalDragEnd,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            width: double.infinity,
+            height: double.infinity,
+            color: Colors.transparent,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                if (widget.showGlow)
+                  _buildSelectionGlow(orbitCenterX, orbitCenterY, orbitRadius),
+                if (widget.showPath)
+                  _buildOrbitPath(orbitCenterX, orbitCenterY, orbitRadius),
+                ValueListenableBuilder<double>(
+                  valueListenable: _scrollOffset,
+                  builder: (context, _, __) => SizedBox.expand(
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: _buildSongItems(
+                        orbitCenterX, orbitCenterY, orbitRadius, maxScale,
+                      ),
+                    ),
                   ),
-                );
-              },
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+        // Adjacent cards must not paint over the search bar or player controls.
+        return landscape ? ClipRect(child: orbit) : orbit;
+      },
     );
   }
 
@@ -471,7 +489,9 @@ class _OrbitScrollState extends State<OrbitScroll>
     );
   }
 
-  List<Widget> _buildSongItems(double centerX, double centerY, double radius) {
+  List<Widget> _buildSongItems(
+    double centerX, double centerY, double radius, double maxScale,
+  ) {
     final List<Widget> items = [];
 
     final centerIndex = _scrollOffset.value.round();
@@ -509,7 +529,7 @@ class _OrbitScrollState extends State<OrbitScroll>
           scale = distantScale -
               (distanceFromCenter - 2.0) * 0.12;
         }
-        scale = scale.clamp(0.0, 1.25);
+        scale = scale.clamp(0.0, maxScale);
 
         if (scale < 0.1) continue;
 

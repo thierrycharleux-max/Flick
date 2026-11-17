@@ -12,6 +12,7 @@ import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/albums/widgets/identify_album_sheet.dart';
 import 'package:flick/features/albums/widgets/album_completeness_status.dart';
+import 'package:flick/features/albums/widgets/album_landscape_layout.dart';
 import 'package:flick/features/artists/screens/artist_detail_screen.dart';
 import 'package:flick/models/album_completeness.dart';
 import 'package:flick/models/playback_context.dart';
@@ -45,6 +46,8 @@ class AlbumDetailScreen extends ConsumerStatefulWidget {
   final String? albumArt;
   final String? albumArtSourcePath;
   final PlayerService playerService;
+  /// Optional full-library snapshot from the albums grid, never a search subset.
+  final List<AlbumGroup>? libraryAlbums;
 
   const AlbumDetailScreen({
     super.key,
@@ -54,6 +57,7 @@ class AlbumDetailScreen extends ConsumerStatefulWidget {
     required this.albumArt,
     required this.albumArtSourcePath,
     required this.playerService,
+    this.libraryAlbums,
   });
 
   @override
@@ -75,6 +79,7 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
   bool _completenessLoaded = false;
   StreamSubscription<void>? _songsSubscription;
   Timer? _completenessRefreshTimer;
+  Timer? _extrasLoadTimer;
 
   List<AlbumGroup> _moreAlbums = [];
   Map<String, List<Song>> _moreArtists = {};
@@ -91,13 +96,20 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
         _refreshCompleteness,
       );
     });
-    _loadExtras();
-    _extractAlbumColor();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Paint tracks and playback controls before loading optional metadata.
+      _extrasLoadTimer = Timer(AppConstants.animationNormal, () {
+        _loadExtras();
+        _extractAlbumColor();
+      });
+    });
   }
 
   @override
   void dispose() {
     _completenessRefreshTimer?.cancel();
+    _extrasLoadTimer?.cancel();
     _songsSubscription?.cancel();
     _scrollController.dispose();
     disposeArtworkGate();
@@ -113,31 +125,45 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
   }
 
   Future<void> _loadExtras() async {
-    final allAlbums = await _songRepository.getAlbumGroups();
-    final allArtists = await _songRepository.getSongsByArtist();
-    final completeness = _completenessFor(allAlbums);
-
-    final moreAlbums =
-        allAlbums
-            .where(
-              (a) =>
-                  a.key != _albumKey(widget.albumName) &&
-                  (a.albumArtist.toLowerCase() ==
-                      widget.albumArtist.toLowerCase()),
-            )
-            .toList();
-
-    final moreArtists =
-        Map<String, List<Song>>.from(allArtists)
-          ..remove(widget.albumArtist);
-
-    if (mounted) {
+    try {
+      final allAlbums =
+          widget.libraryAlbums ?? await _songRepository.getAlbumGroups();
+      if (!mounted) return;
+      final prefs = ref.read(appPreferencesProvider);
+      final moreAlbums = prefs.showMoreFromArtist
+          ? allAlbums
+                .where(
+                  (album) =>
+                      album.key != _albumKey(widget.albumName) &&
+                      album.albumArtist.toLowerCase() ==
+                          widget.albumArtist.toLowerCase(),
+                )
+                .toList()
+          : <AlbumGroup>[];
+      final moreArtists = <String, List<Song>>{};
+      if (prefs.showMoreArtists) {
+        // Album groups already contain every song; avoid rereading the library.
+        for (final album in allAlbums) {
+          for (final song in album.songs) {
+            if (song.artist != widget.albumArtist) {
+              moreArtists.putIfAbsent(song.artist, () => []).add(song);
+            }
+          }
+        }
+        for (final entry in moreArtists.entries) {
+          moreArtists[entry.key] = SongRepository.sortSongsByAlbum(entry.value);
+        }
+      }
       setState(() {
         _moreAlbums = moreAlbums;
         _moreArtists = moreArtists;
-        _completeness = completeness;
+        _completeness = _completenessFor(allAlbums);
         _completenessLoaded = true;
       });
+    } catch (_) {
+      // Optional library metadata must not prevent playing the supplied tracks.
+      if (!mounted) return;
+      setState(() => _completeness = AlbumCompleteness.unknown);
     }
   }
 
@@ -472,6 +498,7 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
           albumArt: _getArt(album.songs),
           albumArtSourcePath: _getSourcePath(album.songs),
           playerService: widget.playerService,
+          libraryAlbums: widget.libraryAlbums,
         ),
       ),
     );
@@ -494,6 +521,8 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
   @override
   Widget build(BuildContext context) {
     final bgColor = _tintBackground(_backgroundBlend);
+    final size = MediaQuery.sizeOf(context);
+    final landscape = size.width > size.height;
 
     return TweenAnimationBuilder<Color?>(
       tween: ColorTween(begin: AppColors.background, end: bgColor),
@@ -511,165 +540,208 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
         return Stack(
           children: [
             Scaffold(
-          backgroundColor: resolvedBg,
-          body: AdaptiveColorProvider(
-            backgroundColor: resolvedBg,
-            albumDominantColor: _albumColor,
-              child: NotificationListener<ScrollNotification>(
-                onNotification: onScrollNotification,
-                child: CustomScrollView(
-                controller: _scrollController,
-              slivers: [
-                DetailHeader(
-                  expanded: prefs.detailHeaderArtExpanded,
-                  centeredTitle: prefs.detailHeaderCenteredTitle,
-                  artBuilder: _buildArtLayer,
-                  artColor: _albumColor,
-                  title: widget.albumName,
-                  subtitle: widget.albumArtist,
-                  meta: _metaLine,
-                  lossless: _hasLossless,
-                  metadataBadge: _completenessLoaded && _completeness.isComplete
-                      ? AlbumVerifiedBadge(completeness: _completeness)
-                      : null,
-                  fadeTo: resolvedBg,
-                  onBack: () => Navigator.of(context).pop(),
-                ),
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: AppConstants.spacingMd),
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppConstants.spacingLg,
-                      vertical: AppConstants.spacingXxs,
-                    ),
-                    child: DetailActionCapsule(
-                      isFavorite: _isAllFavorites,
-                      onToggleFavorite: _toggleFavoriteAll,
-                      onShuffle: _shuffleAll,
-                      onPlay: _playAll,
-                      onQueue: _queueAll,
-                      onMore: _showMore,
-                       primaryColor: _albumColor,
-                     ),
-                   ),
-                 ),
-                  if (_completenessLoaded && !_completeness.isComplete)
-                    SliverToBoxAdapter(
-                      child: AlbumCompletenessStatusWidget(
-                        completeness: _completeness,
-                      ),
-                    ),
-                  SliverToBoxAdapter(
-                    child: DetailDescription(descriptionKey: _descriptionKey),
-                  ),
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: AppConstants.spacingMd),
-                  ),
-                  if (albumNotes != null && albumNotes.isNotEmpty)
-                    _buildSectionTitle(context, l10n.aboutThisAlbum),
-                 if (albumNotes != null && albumNotes.isNotEmpty)
-                     SliverToBoxAdapter(
-                       child: FetchedDescription(
-                         text: albumNotes,
-                         sheetTitle: l10n.aboutThisAlbum,
-                       ),
-                     ),
-                 const SliverToBoxAdapter(
-                   child: SizedBox(height: AppConstants.spacingLg),
-                 ),
-                 _buildSectionTitle(context, l10n.songs14),
-                SliverPadding(
-                  padding: EdgeInsets.only(
-                    bottom: AppConstants.navBarHeight + 80,
-                  ),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final song = widget.songs[index];
-                      return _SongTile(
-                        song: song,
-                        onTap: () => _playSong(song),
+              backgroundColor: resolvedBg,
+              body: AdaptiveColorProvider(
+                backgroundColor: resolvedBg,
+                albumDominantColor: _albumColor,
+                child: Builder(
+                  builder: (context) {
+                    if (landscape) {
+                      return AlbumLandscapeLayout(
+                        title: widget.albumName,
+                        artist: widget.albumArtist,
+                        meta: [
+                          _metaLine,
+                          if (_hasLossless) l10n.lossless,
+                        ].join(' · '),
+                        artwork: _buildArtLayer(context, fadeOnScroll: false),
+                        actions: _buildActions(),
+                        tracks: NotificationListener<ScrollNotification>(
+                          onNotification: onScrollNotification,
+                          child: CustomScrollView(
+                            controller: _scrollController,
+                            slivers: _buildAlbumBodySlivers(
+                              context,
+                              albumNotes,
+                              compact: true,
+                            ),
+                          ),
+                        ),
+                        onBack: () => Navigator.of(context).pop(),
                       );
-                    }, childCount: widget.songs.length),
-                  ),
-                ),
-                if (_moreAlbums.isNotEmpty &&
-                    ref.watch(appPreferencesProvider).showMoreFromArtist) ...[
-                  _buildSectionTitle(
-                    context,
-                    l10n.moreFrom(widget.albumArtist),
-                  ),
-                  SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: 200,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppConstants.spacingLg,
-                        ),
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _moreAlbums.length,
-                        separatorBuilder: (_, __) => const SizedBox(
-                          width: AppConstants.spacingMd,
-                        ),
-                        itemBuilder: (context, index) {
-                          final album = _moreAlbums[index];
-                          return _AlbumCard(
-                            albumName: album.albumName,
-                            albumArtist: album.albumArtist,
-                            songCount: album.songs.length,
-                            albumArt: _getArt(album.songs),
-                            albumArtSourcePath: _getSourcePath(album.songs),
-                            onTap: () => _openAlbum(album),
-                          );
-                        },
+                    }
+                    return NotificationListener<ScrollNotification>(
+                      onNotification: onScrollNotification,
+                      child: CustomScrollView(
+                        controller: _scrollController,
+                        slivers: [
+                          DetailHeader(
+                            expanded: prefs.detailHeaderArtExpanded,
+                            centeredTitle: prefs.detailHeaderCenteredTitle,
+                            artBuilder: _buildArtLayer,
+                            artColor: _albumColor,
+                            title: widget.albumName,
+                            subtitle: widget.albumArtist,
+                            meta: _metaLine,
+                            lossless: _hasLossless,
+                            metadataBadge:
+                                _completenessLoaded && _completeness.isComplete
+                                ? AlbumVerifiedBadge(
+                                    completeness: _completeness,
+                                  )
+                                : null,
+                            fadeTo: resolvedBg,
+                            onBack: () => Navigator.of(context).pop(),
+                          ),
+                          const SliverToBoxAdapter(
+                            child: SizedBox(height: AppConstants.spacingMd),
+                          ),
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppConstants.spacingLg,
+                                vertical: AppConstants.spacingXxs,
+                              ),
+                              child: _buildActions(),
+                            ),
+                          ),
+                          ..._buildAlbumBodySlivers(context, albumNotes),
+                        ],
                       ),
-                    ),
-                  ),
-                ],
-                if (_moreArtists.isNotEmpty &&
-                    ref.watch(appPreferencesProvider).showMoreArtists) ...[
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: AppConstants.spacingLg),
-                  ),
-                  _buildSectionTitle(context, l10n.moreArtists2),
-                  SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: 160,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppConstants.spacingLg,
-                        ),
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _moreArtists.length,
-                        separatorBuilder: (_, __) => const SizedBox(
-                          width: AppConstants.spacingMd,
-                        ),
-                        itemBuilder: (context, index) {
-                          final entry = _moreArtists.entries.toList()[index];
-                          return _ArtistCard(
-                            artistName: entry.key,
-                            songs: entry.value,
-                            onTap: () => _openArtist(entry.key, entry.value),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: AppConstants.navBarHeight + 120),
+                    );
+                  },
                 ),
-              ],
-              ),
               ),
             ),
-            ),
-            _buildOverlayTopBar(context, resolvedBg),
+            if (!landscape) _buildOverlayTopBar(context, resolvedBg),
           ],
         );
       },
     );
+  }
+
+  Widget _buildActions() => DetailActionCapsule(
+    isFavorite: _isAllFavorites,
+    onToggleFavorite: _toggleFavoriteAll,
+    onShuffle: _shuffleAll,
+    onPlay: _playAll,
+    onQueue: _queueAll,
+    onMore: _showMore,
+    primaryColor: _albumColor,
+  );
+
+  List<Widget> _buildAlbumBodySlivers(
+    BuildContext context,
+    String? albumNotes, {
+    bool compact = false,
+  }) {
+    final description = <Widget>[
+      if (_completenessLoaded && !_completeness.isComplete)
+        SliverToBoxAdapter(
+          child: AlbumCompletenessStatusWidget(completeness: _completeness),
+        ),
+      SliverToBoxAdapter(
+        child: DetailDescription(descriptionKey: _descriptionKey),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: AppConstants.spacingMd)),
+      if (albumNotes != null && albumNotes.isNotEmpty)
+        _buildSectionTitle(context, l10n.aboutThisAlbum),
+      if (albumNotes != null && albumNotes.isNotEmpty)
+        SliverToBoxAdapter(
+          child: FetchedDescription(
+            text: albumNotes,
+            sheetTitle: l10n.aboutThisAlbum,
+          ),
+        ),
+      const SliverToBoxAdapter(child: SizedBox(height: AppConstants.spacingLg)),
+    ];
+    final tracks = <Widget>[
+      _buildSectionTitle(context, l10n.songs14),
+      SliverPadding(
+        padding: EdgeInsets.only(
+          bottom: compact
+              ? AppConstants.spacingMd
+              : AppConstants.navBarHeight + 80,
+        ),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final song = widget.songs[index];
+            return _SongTile(song: song, onTap: () => _playSong(song));
+          }, childCount: widget.songs.length),
+        ),
+      ),
+    ];
+    return [
+      // Start with tracks in landscape; information remains available below.
+      if (compact) ...tracks,
+      ...description,
+      if (!compact) ...tracks,
+      if (_moreAlbums.isNotEmpty &&
+          ref.watch(appPreferencesProvider).showMoreFromArtist) ...[
+        _buildSectionTitle(context, l10n.moreFrom(widget.albumArtist)),
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: 200,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppConstants.spacingLg,
+              ),
+              scrollDirection: Axis.horizontal,
+              itemCount: _moreAlbums.length,
+              separatorBuilder: (_, __) =>
+                  const SizedBox(width: AppConstants.spacingMd),
+              itemBuilder: (context, index) {
+                final album = _moreAlbums[index];
+                return _AlbumCard(
+                  albumName: album.albumName,
+                  albumArtist: album.albumArtist,
+                  songCount: album.songs.length,
+                  albumArt: _getArt(album.songs),
+                  albumArtSourcePath: _getSourcePath(album.songs),
+                  onTap: () => _openAlbum(album),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+      if (_moreArtists.isNotEmpty &&
+          ref.watch(appPreferencesProvider).showMoreArtists) ...[
+        const SliverToBoxAdapter(
+          child: SizedBox(height: AppConstants.spacingLg),
+        ),
+        _buildSectionTitle(context, l10n.moreArtists2),
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: 160,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppConstants.spacingLg,
+              ),
+              scrollDirection: Axis.horizontal,
+              itemCount: _moreArtists.length,
+              separatorBuilder: (_, __) =>
+                  const SizedBox(width: AppConstants.spacingMd),
+              itemBuilder: (context, index) {
+                final entry = _moreArtists.entries.toList()[index];
+                return _ArtistCard(
+                  artistName: entry.key,
+                  songs: entry.value,
+                  onTap: () => _openArtist(entry.key, entry.value),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+      SliverToBoxAdapter(
+        child: SizedBox(
+          height: compact
+              ? AppConstants.spacingMd
+              : AppConstants.navBarHeight + 120,
+        ),
+      ),
+    ];
   }
 
   Widget _buildOverlayTopBar(BuildContext context, Color bg) {
@@ -752,7 +824,7 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
     );
   }
 
-  Widget _buildArtLayer(BuildContext context) {
+  Widget _buildArtLayer(BuildContext context, {bool fadeOnScroll = true}) {
     final prefs = ref.watch(appPreferencesProvider);
     final animated = prefs.animatedAlbumArt && prefs.animationsEnabled;
     final fallback = Container(
@@ -772,20 +844,22 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
         errorWidget: fallback,
       );
     }
+    final artwork = AnimatedAlbumArt(
+      imagePath: widget.albumArt,
+      audioSourcePath: widget.albumArtSourcePath,
+      dominantColor: _albumColor,
+      placeholder: fallback,
+      errorWidget: fallback,
+      albumName: widget.albumName,
+      artistName: widget.albumArtist,
+      representativeSongTitle: widget.songs.isNotEmpty
+          ? widget.songs.first.title
+          : null,
+    );
+    if (!fadeOnScroll) return artwork;
     return ScrollFadeWrapper(
       scrollController: _scrollController,
-      child: AnimatedAlbumArt(
-        imagePath: widget.albumArt,
-        audioSourcePath: widget.albumArtSourcePath,
-        dominantColor: _albumColor,
-        placeholder: fallback,
-        errorWidget: fallback,
-        albumName: widget.albumName,
-        artistName: widget.albumArtist,
-        representativeSongTitle: widget.songs.isNotEmpty
-            ? widget.songs.first.title
-            : null,
-      ),
+      child: artwork,
     );
   }
 

@@ -969,7 +969,9 @@ class _ActionButtonPickerScreen extends ConsumerWidget {
         children: [
           SettingsSectionHeader(l10n.englishForFilipino.chooseAction),
           SettingsCard(
-            children: PlayerActionButton.values.fold<List<Widget>>(
+            children: PlayerActionButton.values
+                .where((action) => action != PlayerActionButton.usbVolume)
+                .fold<List<Widget>>(
               [],
               (list, action) {
                 if (list.isNotEmpty) {

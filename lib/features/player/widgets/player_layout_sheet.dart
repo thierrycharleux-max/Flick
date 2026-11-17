@@ -1340,7 +1340,9 @@ class _PlayerActionButtonSelector extends StatelessWidget {
         Wrap(
           spacing: 6,
           runSpacing: 6,
-          children: PlayerActionButton.values.map((action) {
+          children: PlayerActionButton.values
+              .where((action) => action != PlayerActionButton.usbVolume)
+              .map((action) {
             final isSelected = action == currentValue;
             return GestureDetector(
               onTap: () => onChanged(action),

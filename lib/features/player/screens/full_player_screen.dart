@@ -16,6 +16,7 @@ import 'package:flick/features/player/widgets/player_layout_sheet.dart';
 import 'package:flick/features/player/widgets/player_navigation.dart';
 import 'package:flick/features/player/widgets/song_actions_sheet.dart';
 import 'package:flick/features/player/widgets/song_stage.dart';
+import 'package:flick/features/player/widgets/erisin_artwork_stage.dart';
 import 'package:flick/features/player/widgets/song_stage_carousel.dart';
 import 'package:flick/features/player/widgets/lyrics_mode_waveform_strip.dart';
 import 'package:flick/features/player/widgets/album_color_helpers.dart';
@@ -87,7 +88,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   bool _isVisualizationMode = false;
   bool _isImmersiveFullView = false;
   bool _isCarouselDragging = false;
-  PlayerScreenMode _playerScreenMode = PlayerScreenMode.immersive;
+  PlayerScreenMode _playerScreenMode = PlayerScreenMode.artworkCard;
   int _immersiveAutoFullViewDelaySeconds = 0;
   Timer? _immersiveFullViewTimer;
   final GlobalKey _usbVolumeButtonKey = GlobalKey();
@@ -558,6 +559,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     AlbumColorMode albumColorMode,
     dynamic appPrefs,
   ) {
+    final size = MediaQuery.sizeOf(context);
+    final compactCoverChrome = size.width > size.height * 1.3 &&
+        _playerScreenMode == PlayerScreenMode.artworkCard &&
+        !_isLyricsMode && !(_isVisualizationMode && appPrefs.visualizerEnabled);
     final hideQueueBadge =
         PlayerActionButtonX.fromStorageValue(appPrefs.leftActionButton) ==
             PlayerActionButton.queue ||
@@ -570,7 +575,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: context.responsive(8.0, 12.0, 16.0),
-        vertical: context.responsive(4.0, 6.0, 8.0),
+        vertical: compactCoverChrome ? 0 : context.responsive(4.0, 6.0, 8.0),
       ),
       child: Row(
         children: [
@@ -1142,8 +1147,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     // controls on the right. Portrait keeps the original single-column layout.
     final viewSize = MediaQuery.sizeOf(context);
     final landscapeSplit = viewSize.width > viewSize.height * 1.3;
-    final stageFlex = viewSize.width >= 900 ? 11 : 10;
-    final controlsFlex = viewSize.width >= 900 ? 9 : 10;
+    final erisinCoverLayout = landscapeSplit &&
+        _playerScreenMode == PlayerScreenMode.artworkCard &&
+        !_isLyricsMode && !visualizationMode;
+    final stageFlex = !erisinCoverLayout && viewSize.width >= 900 ? 11 : 10;
+    final controlsFlex = !erisinCoverLayout && viewSize.width >= 900 ? 9 : 10;
 
     final Widget stageArea = Stack(
       children: [
@@ -1178,6 +1186,15 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                     onPrevious: _handleCarouselPrevious,
                     stageBuilder: (s) {
                       final isCurrent = s.id == song.id;
+                      if (erisinCoverLayout) {
+                        return ErisinArtworkStage(
+                          song: s,
+                          footerHeight: 8,
+                          footer: showPinnedActionRow
+                              ? fileInfoBuilder(s, _isLyricsMode, _playerScreenMode)
+                              : null,
+                        );
+                      }
                       return SongStage(
                         song: s,
                         lyricsMode: _isLyricsMode,
@@ -1391,7 +1408,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
         ),
       ),
       // Original bottom spacing: immersive 24-40, artworkCard directorySpacing 24-40
-      SizedBox(height: context.responsive(24.0, 32.0, 40.0)),
+      SizedBox(height: landscapeSplit ? 8 : context.responsive(24.0, 32.0, 40.0)),
     ];
 
     return Stack(
@@ -1410,11 +1427,28 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                       Expanded(flex: stageFlex, child: stageArea),
                       Expanded(
                         flex: controlsFlex,
-                        child: Center(
-                          child: SingleChildScrollView(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: controlsChildren,
+                        child: erisinCoverLayout
+                            ? ErisinPlaybackPanel(
+                                song: song,
+                                onArtist: () => _navigation.openArtistFromSong(context, song),
+                                onAlbum: () => _navigation.openAlbumFromSong(context, song),
+                                controls: Column(mainAxisSize: MainAxisSize.min,
+                                  children: controlsChildren),
+                              )
+                            : LayoutBuilder(
+                          builder: (context, constraints) => MediaQuery(
+                            data: MediaQuery.of(context).copyWith(size: constraints.biggest),
+                            child: Center(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: SizedBox(
+                                  width: constraints.maxWidth,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: controlsChildren,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),

@@ -72,8 +72,9 @@ adb shell wm density                       # densité utilisée pour le dimensio
   Suivant/Précédent/Lecture-Pause à la MediaSession de Flick ; cette intégration
   n'a pas été validée sur l'Erisin.
 - **Fluidité** : si ça rame, Réglages → désactiver animations et fond animé.
-- **Limites connues** : les listes/menus gardent la disposition téléphone (étirée) avec la
-  barre de navigation en bas ; seul le lecteur plein écran a une vraie mise en page paysage.
+- **Disposition paysage** : les albums et leur détail disposent maintenant de
+  leur propre disposition compacte ; les autres listes et menus restent adaptés
+  depuis leurs vues téléphone.
 
 ## Validation de l'APK locale du 28 octobre 2026
 
@@ -89,3 +90,150 @@ adb shell wm density                       # densité utilisée pour le dimensio
 
 L'Erisin physique, Android 9, les sorties audio, les touches volant et l'endurance
 restent à valider sur l'appareil. Les contrôles sur émulateur ne les établissent pas.
+
+## Mise à jour Erisin 0.23.0-erisin.1+31 (13 novembre 2026)
+
+- En paysage, le mini-lecteur et la navigation partagent une barre compacte
+  réservée sous la bibliothèque et les pages de détail. Les cartes de la vue
+  orbitale restent dans leur zone, même lorsque la densité de l'écran augmente.
+- Les lecteurs flottants et les fenêtres automatiques de séries/succès ne
+  s'affichent plus en paysage. Le bandeau de connexion est masqué en paysage.
+- Le mode audio direct pour DAC USB, ses invitations et ses réglages sont
+  désactivés ; les anciens choix USB sont ignorés. Le stockage USB reste utilisable.
+  L'audio normal passe par Android, qui conserve le choix de sa route système.
+- APK signé avec la même clé locale que la version `0.23.0-beta.1+30`.
+  Une mise à jour peut donc conserver les données de l'application si la version
+  installée possède bien cette signature.
+- Essais réalisés sur émulateur Android 10 à 1024×600 : mise à jour depuis
+  l'APK précédent avec des préférences USB et lecteur flottant préexistantes,
+  conservation de la bibliothèque de test, navigation, recherche et lecture
+  M4A via la sortie Android partagée. Densités 160 et 240 vérifiées.
+- Ces essais ne remplacent pas une vérification sur l'Erisin Android 9 réel :
+  le son physique, la densité exacte et les commandes de l'autoradio restent
+  à confirmer sur place.
+
+
+## Mise à jour Erisin 0.23.0-erisin.2+32 (14 novembre 2026)
+
+- Masquage des barres système demandé nativement à Android au lancement et au
+  retour au premier plan, avec rétablissement après fermeture du clavier.
+- Bibliothèque : en-tête compact, recherche intégrée sur demande, davantage de
+  hauteur réservée aux pochettes. Albums : suppression du résumé « Your
+  collection at a glance » et du titre « Collection » redondant.
+- Détail album : pochette et actions fixes à gauche, pistes défilantes à droite.
+  Les commandes sont accessibles dès l'ouverture. Les petites hauteurs utilisent
+  un en-tête plus court avec commandes fixes.
+- Un seul retour au morceau en cours : pastille fixe en haut, sans second bandeau
+  du morceau en bas. La navigation Menu / Songs / Settings reste en bas.
+- Lecteur : pochette carrée à gauche par défaut, commandes visibles à droite.
+  Une migration unique applique ce défaut aux anciennes préférences, puis les
+  choix ultérieurs de l'utilisateur sont conservés.
+- Ouverture des albums : une seule cible tactile par carte et protection contre
+  les doubles ouvertures ; réutilisation des regroupements déjà chargés et
+  report du travail secondaire après la transition.
+- Diagnostic audio : les sondages natifs Rust synchrones ne sont plus demandés
+  pendant la lecture ExoPlayer. Cela retire une source de contention possible,
+  sans établir la cause de la fenêtre « Flick ne répond pas » photographiée.
+- Bibliothèque : une analyse rapide des dossiers déjà sélectionnés est lancée
+  une seule fois, deux secondes après le démarrage. Aucun déclenchement au simple
+  retour dans l'application, ni périodique ou lié à MediaStore/USB. Les analyses
+  manuelles restent disponibles. Les fichiers inchangés utilisent le cache.
+- Une clé absente ou un dossier SAF dont l'accès est incertain conserve son
+  catalogue. Un dossier SAF réellement entièrement vidé conserve également ses
+  anciennes entrées ; le retirer de la bibliothèque permet de les supprimer.
+- Le chemin audio direct vers un DAC USB reste désactivé ; le stockage USB reste
+  utilisable et la lecture conserve la sortie audio gérée par Android.
+
+Validation locale : suites de tests d'affichage, de diagnostics, de scanner et de
+coordination réussies ; analyse Flutter sans erreur (29 informations préexistantes).
+Sur émulateur Android 10, 1024×600 à 240 dpi : mise à jour depuis la version 31
+sans perte de bibliothèque, commandes du lecteur et de l'album immédiatement
+visibles, pastille haute unique, recherche intégrée et barres système masquées
+après fermeture du clavier. La MediaSession signale une lecture active normale.
+Ajout d'un sixième album dans le dossier SAF de test : dix titres conservés au
+retour au premier plan, puis douze détectés automatiquement au démarrage suivant.
+Aucune erreur fatale ni ANR observée pendant ces vérifications ponctuelles.
+Les captures de démonstration utilisent des albums synthétiques, sans modifier
+la musique de l'utilisateur. L'Erisin Android 9 physique n'est pas connecté.
+
+
+Livraison vérifiée : APK `0.23.0-erisin.2+32`, ARM32/ARM64, minSdk 26,
+signature locale identique à la version 31. Copie temporaire sur MBUX contrôlée
+par SHA-256 avant renommage, puis contrôle du fichier final avant retrait de la
+version 31. Clé éjectée. SHA-256 :
+`4775485c4fd56703e3d08364c7bb2b9a228fb0139fbf2836b2d4db262496a5d8`.
+
+
+## Mise à jour Erisin 0.23.0-erisin.3+33 (16 novembre 2026)
+
+### Carte microSD et nouveaux albums
+
+La sélection d'un dossier parent (ou de la racine de la carte) remplace désormais
+les anciens dossiers d'albums qu'il contient, au lieu de refuser leur chevauchement.
+Une transaction conserve les identifiants des morceaux, leurs modifications,
+les fenêtres CUE, et donc les références des favoris / playlists / historique.
+Les chemins SAF sont adaptés au nouveau droit d'accès ou au chemin brut utilisé
+par le scanner ; les anciens droits restent disponibles pour les files restaurées.
+La modification des racines attend les scans déjà en cours.
+
+Après installation, choisir une seule fois **Réglages → Bibliothèque → Ajouter
+un dossier → racine de la microSD**, puis autoriser l'accès. Il n'est pas
+nécessaire de retirer d'abord chaque ancien dossier. Le scan inclut alors les
+nouveaux sous-dossiers, même s'ils n'ont jamais été ajoutés manuellement.
+L'actualisation automatique reste limitée au démarrage de l'application.
+
+### Blocage au début de lecture
+
+Le décodage du fichier de pochette de notification était synchrone dans le
+service Android principal. Il est déplacé sur un exécuteur d'arrière-plan ;
+la notification et le démarrage du service n'attendent plus cette lecture.
+Une pochette ancienne ne peut pas remplacer celle d'un nouveau morceau, et les
+résultats reçus après destruction du service sont ignorés.
+Cette contention possible est retirée. Aucun journal ANR de l'Erisin physique
+n'est disponible : cela n'établit pas la cause exacte des blocages rapportés.
+
+### Vérifications et livraison
+
+- 47 tests Flutter ciblés réussis, dont un test avec la vraie base Isar pour
+  la sélection d'une carte remplaçant un dossier album sans perdre l'identifiant,
+  les éditions et une fenêtre CUE ; identifiant favori conservé.
+- Deux tests JVM du chargeur de pochettes : absence de lecture sur l'appelant,
+  résultat périmé ignoré, service détruit protégé.
+- Émulateur Android 10, 1024×600 : refus de la version 32 reproduit, mise à jour
+  vers 33 sans désinstallation, choix du parent accepté ; bibliothèque passée
+  de deux à six titres, dont un album jamais sélectionné auparavant. Ajout
+  d'un autre album après fermeture : huit titres détectés au lancement suivant.
+- Lectures AAC et ALAC synthétiques et cinq changements successifs de morceau :
+  MediaSession active, interface réactive, aucune erreur fatale / ANR observée.
+- Mise en page et blocage sur l'Erisin Android 9 réel : à confirmer sur appareil.
+- APK ARM32/ARM64, minSdk 26, même certificat local que la version 32.
+- Copie sur MBUX vérifiée avant retrait de la version 32, sauvegardée localement.
+- SHA-256 : `be1825b47171efa03ad2a306a9975f9b68122b2aa66c661972990c076977d659`.
+
+
+## Mise à jour Erisin 0.23.0-erisin.4+34 (16 novembre 2026)
+
+Disposition du lecteur paysage adaptée à la maquette validée : grande pochette
+carrée encadrée à gauche ; titre du morceau en haut à droite ; album et artistes
+réunis dans un petit encadré placé sous le titre. La forme d'onde, les durées et
+les commandes occupent la partie inférieure droite. Le bandeau supérieur perd
+ses marges verticales dans ce mode, en conservant les dimensions des boutons.
+Les raccourcis et informations techniques restent disponibles sous la pochette.
+Les liens de navigation vers l'album et l'artiste sont conservés dans l'encadré.
+Les modes paroles / visualisation et la présentation portrait sont conservés.
+
+Vérification : 16 tests d'affichage et de compatibilité réussis ; après le dernier
+ajustement de titre et de marges, les six tests ciblés repassent. La composition
+est contrôlée en 1024×600, densités 160 et 240, texte normal et agrandi à 130 %,
+avec titre long, album, artistes et raccourcis occupant deux rangées.
+Analyse ciblée sans erreur (une information préexistante). Moteur audio et
+actualisation au lancement inchangés par cette version.
+
+
+APK final installé et observé sur émulateur : mise à jour sans désinstallation,
+bibliothèque de test conservée ; lecteur contrôlé en densité 240 après le dernier
+ajustement, commandes visibles, MediaSession en lecture et aucun débordement
+signalé dans le journal observé. Les images de test utilisent une pochette et
+un intitulé de démonstration ; aucune musique de l'utilisateur n'est modifiée.
+Copie MBUX vérifiée avant retrait de la version 33 (sauvegardée localement).
+Même certificat local ; SHA-256 : `8d72de6a21d7c155d369af08fc0f6612c1230a0e123a3f15cd30e5c27d864192`.

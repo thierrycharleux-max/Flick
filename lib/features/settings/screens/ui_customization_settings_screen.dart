@@ -110,30 +110,6 @@ class UiCustomizationSettingsScreen extends ConsumerWidget {
                       .setShowEngineSelector(value);
                 },
               ),
-              const SettingsDivider(),
-              ToggleSetting(
-                icon: LucideIcons.volume2,
-                title: l10n.englishForFilipino.usbVolumeOnHome,
-                subtitle: l10n.showTheUsbVolumeBarOn,
-                value: appPreferences.showUsbVolumeOnMenu,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setShowUsbVolumeOnMenu(value);
-                },
-              ),
-              const SettingsDivider(),
-              ToggleSetting(
-                icon: LucideIcons.slidersHorizontal,
-                title: l10n.englishForFilipino.usbVolumeInSettings,
-                subtitle: l10n.showTheUsbVolumeBarOn2,
-                value: appPreferences.showUsbVolumeOnSettings,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setShowUsbVolumeOnSettings(value);
-                },
-              ),
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),

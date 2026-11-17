@@ -1,12 +1,14 @@
 import 'package:isar_community/isar.dart';
 
 import '../database.dart';
+import '../../services/folder_root_migration.dart';
 
 /// Repository for folder CRUD operations.
 class FolderRepository {
-  final Isar _isar;
+  final Isar? _isarOverride;
+  Isar get _isar => _isarOverride ?? Database.instance;
 
-  FolderRepository({Isar? isar}) : _isar = isar ?? Database.instance;
+  FolderRepository({Isar? isar}) : _isarOverride = isar;
 
   /// Get all watched folders.
   Future<List<FolderEntity>> getAllFolders() async {
@@ -32,6 +34,41 @@ class FolderRepository {
       }
 
       await _isar.folderEntitys.put(entity);
+    });
+  }
+
+  /// Replace narrower watched roots without deleting songs or changing their IDs.
+  Future<void> consolidateRoot(
+    FolderEntity parent,
+    List<String> replacedUris, {
+    String? rawRoot,
+  }) async {
+    await _isar.writeTxn(() async {
+      var count = 0;
+      for (final uri in replacedUris) {
+        final songs = await _isar.songEntitys
+            .where()
+            .folderUriEqualTo(uri)
+            .findAll();
+        for (final song in songs) {
+          song.relativeFolderPath = migratedRelativeFolder(
+            song.filePath,
+            parent.uri,
+            rawRoot: rawRoot,
+          );
+          song.filePath = migrateFolderSongPath(
+            song.filePath,
+            parent.uri,
+            rawRoot: rawRoot,
+          );
+          song.folderUri = parent.uri;
+        }
+        await _isar.songEntitys.putAll(songs);
+        count += songs.length;
+        await _isar.folderEntitys.filter().uriEqualTo(uri).deleteAll();
+      }
+      parent.songCount = count;
+      await _isar.folderEntitys.put(parent);
     });
   }
 

@@ -37,7 +37,6 @@ import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/engine_restart_notice.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
-import 'package:flick/widgets/uac2/uac2_volume_control.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/l10n/home_greeting.dart';
 import 'package:flick/widgets/common/baybayin_text.dart';
@@ -509,20 +508,6 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                 current,
               ),
             ),
-            const SizedBox(height: AppConstants.spacingSm),
-            _buildEngineOption(
-              context,
-              title: l10n.bitPerfectUsbDac,
-              subtitle: l10n.studioGradeOutputForExternalDacs,
-              icon: LucideIcons.usb,
-              selected: current == AudioEnginePreference.isochronousUsb,
-              onTap: () => _selectEngine(
-                sheetContext,
-                service,
-                AudioEnginePreference.isochronousUsb,
-                current,
-              ),
-            ),
           ],
         ),
       ),
@@ -718,27 +703,6 @@ class _MenuScreenState extends ConsumerState<MenuScreen>
                                     ),
                                   )
                                 : const SizedBox.shrink(),
-                      ),
-                    ),
-                  if (appPreferences.showUsbVolumeOnMenu)
-                    SliverToBoxAdapter(
-                      child: AnimatedSize(
-                        duration: AppConstants.animationNormal,
-                        curve: Curves.easeInOut,
-                        alignment: Alignment.topCenter,
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            AppConstants.spacingLg,
-                            0,
-                            AppConstants.spacingLg,
-                            AppConstants.spacingMd,
-                          ),
-                          child: Uac2VolumeControl(
-                            useGradientBackground: true,
-                            gradientColors:
-                                _heroGradientColors(_heroDominantColor),
-                          ),
-                        ),
                       ),
                     ),
                   if (_pendingEngineRestart &&

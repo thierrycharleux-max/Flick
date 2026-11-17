@@ -17,6 +17,8 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
+import java.util.concurrent.Executors
+import java.util.concurrent.Executor
 import android.support.v4.media.MediaMetadataCompat
 import androidx.media.VolumeProviderCompat
 import android.support.v4.media.session.MediaSessionCompat
@@ -63,8 +65,20 @@ class MusicNotificationService : Service() {
     private var castVolumePercent: Int = 70
     private var castVolumeProvider: VolumeProviderCompat? = null
 
-    private var cachedAlbumArt: Bitmap? = null
-    private var cachedAlbumArtPath: String? = null
+    private val artworkWorker = Executors.newSingleThreadExecutor()
+    private val artworkMain = Handler(Looper.getMainLooper())
+    private val artworkLoader = LatestArtworkLoader<Bitmap>(
+        artworkWorker,
+        Executor { action -> artworkMain.post(action) },
+        { path -> decodeAlbumArt(path) },
+        {
+            // Refresh only once the image is ready. Starting playback and the
+            // foreground service never wait for the SD card / image decoder.
+            if (isForegroundServiceStarted) {
+                notificationManager.notify(NOTIFICATION_ID, buildNotification())
+            }
+        },
+    )
 
     private var floatingOverlay: FloatingPlayerOverlay? = null
 
@@ -267,6 +281,8 @@ class MusicNotificationService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        artworkLoader.close()
+        artworkWorker.shutdownNow()
         try {
             unregisterReceiver(actionReceiver)
         } catch (e: Exception) {
@@ -318,37 +334,23 @@ class MusicNotificationService : Service() {
         }
     }
 
-    private fun getAlbumArtBitmap(): Bitmap? {
-        val path = currentAlbumArtPath
-        if (path.isNullOrEmpty()) {
-            cachedAlbumArt = null
-            cachedAlbumArtPath = null
-            return null
-        }
-        if (path == cachedAlbumArtPath && cachedAlbumArt != null) {
-            return cachedAlbumArt
-        }
+    private fun getAlbumArtBitmap(): Bitmap? = artworkLoader.get(currentAlbumArtPath)
+
+    private fun decodeAlbumArt(path: String): Bitmap? {
         return try {
             val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeFile(path, options)
             val maxDim = maxOf(options.outWidth, options.outHeight)
             var sampleSize = 1
-            while (maxDim / sampleSize > 512) {
-                sampleSize *= 2
-            }
+            while (maxDim / sampleSize > 512) sampleSize *= 2
             val decodeOptions = BitmapFactory.Options().apply {
                 inSampleSize = sampleSize
                 inPreferredConfig = Bitmap.Config.ARGB_8888
             }
-            val bitmap = BitmapFactory.decodeFile(path, decodeOptions)
-            if (bitmap != null) {
-                cachedAlbumArt = bitmap
-                cachedAlbumArtPath = path
-            }
-            bitmap
+            BitmapFactory.decodeFile(path, decodeOptions)
         } catch (e: Exception) {
             android.util.Log.w("MusicNotification", "Failed to decode album art: ${e.message}")
-            cachedAlbumArt
+            null
         }
     }
 

@@ -34,13 +34,12 @@ import 'package:flick/features/onboarding/screens/onboarding_screen.dart';
 import 'package:flick/features/onboarding/tutorial_targets.dart';
 import 'package:flick/features/onboarding/widgets/tutorial_overlay.dart';
 import 'package:flick/widgets/common/embedded_mini_player.dart';
+import 'package:flick/widgets/common/erisin_music_pill.dart';
 import 'package:flick/widgets/navigation/bottom_bar_geometry.dart';
 import 'package:flick/providers/mini_player_config_provider.dart';
-import 'package:flick/widgets/common/floating_mini_player.dart';
 import 'package:flick/widgets/common/floating_scan_progress.dart';
 import 'package:flick/widgets/common/connection_notice_host.dart';
 import 'package:flick/widgets/common/display_mode_controller.dart';
-import 'package:flick/widgets/uac2/usb_bit_perfect_prompt.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/library_scanner_service.dart';
 import 'package:flick/services/player_service.dart';
@@ -93,7 +92,7 @@ class FlickPlayerApp extends StatelessWidget {
             LocaleController.instance.bind(AppLocalizations.of(context));
             return Consumer(
               builder: (context, ref, _) => ConnectionNoticeHost(
-                showNotice: ref.watch(
+                showNotice: MediaQuery.orientationOf(context) != Orientation.landscape && ref.watch(
                   appPreferencesProvider.select(
                     (preferences) => preferences.connectionNoticesEnabled,
                   ),
@@ -148,6 +147,7 @@ class _MainShellState extends ConsumerState<MainShell>
   bool _isBottomBarCollapsed = false;
 
   static const double _kNestedBarClearance = 150.0;
+  static const double _kCompactBarHeight = 56.0;
 
   @override
   void initState() {
@@ -389,6 +389,7 @@ class _MainShellState extends ConsumerState<MainShell>
     if (milestone == null || !mounted) return;
 
     _playerService.pendingMilestoneNotifier.value = null;
+    if (MediaQuery.orientationOf(context) == Orientation.landscape) return;
     final milestoneService = MilestoneService();
     unawaited(_showMilestoneDialog(milestone, milestoneService));
   }
@@ -423,6 +424,7 @@ class _MainShellState extends ConsumerState<MainShell>
     final streak = _playerService.streakPopupNotifier.value;
     if (streak == null || streak < 1 || !mounted) return;
     _playerService.streakPopupNotifier.value = null;
+    if (MediaQuery.orientationOf(context) == Orientation.landscape) return;
     showFlickDialog<void>(
       context: context,
       barrierDismissible: true,
@@ -435,7 +437,7 @@ class _MainShellState extends ConsumerState<MainShell>
   }
 
   void _maybeShowWhatsNew() {
-    if (!mounted) return;
+    if (!mounted || MediaQuery.orientationOf(context) == Orientation.landscape) return;
     if (!ref.read(onboardingCompletedProvider)) {
       return;
     }
@@ -758,13 +760,22 @@ class _MainShellState extends ConsumerState<MainShell>
   @override
   Widget build(BuildContext context) {
     final backgroundColor = ref.watch(backgroundColorProvider);
+    final compact = MediaQuery.orientationOf(context) == Orientation.landscape;
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final compactSong = ref.watch(currentSongProvider);
+    final compactTopExtent = compact && compactSong != null && !keyboardVisible
+        ? 48.0 + MediaQuery.paddingOf(context).top
+        : 0.0;
+    final compactBarExtent = compact && !keyboardVisible
+        ? _kCompactBarHeight + MediaQuery.paddingOf(context).bottom
+        : 0.0;
     final miniConfig = ref.watch(miniPlayerConfigProvider);
     final separated = ref.watch(
       appPreferencesProvider.select(
         (prefs) => prefs.separateMiniPlayerFromNavBar,
       ),
     );
-    final extraClearance = BottomBarGeometry.extraClearance(
+    final extraClearance = compact ? 0.0 : BottomBarGeometry.extraClearance(
       context, miniConfig, separated,
     );
 
@@ -779,7 +790,7 @@ class _MainShellState extends ConsumerState<MainShell>
         child: SnackBarTheme(
           data: Theme.of(context).snackBarTheme.copyWith(
             insetPadding: EdgeInsets.fromLTRB(
-              16, 8, 16, _kNestedBarClearance + extraClearance + 12,
+              16, 8, 16, compact ? 12 : _kNestedBarClearance + extraClearance + 12,
             ),
           ),
           child: Scaffold(
@@ -810,20 +821,29 @@ class _MainShellState extends ConsumerState<MainShell>
                   ),
                 ),
 
-                // Nested navigator: tabs + detail screens below the bar.
+                // Give the car layout a real content viewport above the bar.
                 Positioned.fill(
-                  child: Builder(
-                    builder: (nestedContext) {
+                  top: compactTopExtent,
+                  bottom: compactBarExtent,
+                  child: LayoutBuilder(
+                    builder: (nestedContext, constraints) {
                       final mq = MediaQuery.of(nestedContext);
-                      final inflated = mq.copyWith(
-                        padding: mq.padding.copyWith(
-                          bottom: mq.padding.bottom + _kNestedBarClearance + extraClearance,
-                        ),
-                        viewPadding: mq.viewPadding.copyWith(
-                          bottom:
-                              mq.viewPadding.bottom + _kNestedBarClearance + extraClearance,
-                        ),
-                      );
+                      final inflated = compact
+                          ? mq.copyWith(
+                              size: constraints.biggest,
+                              padding: mq.padding.copyWith(bottom: 0,
+                                top: compactTopExtent > 0 ? 0 : mq.padding.top),
+                              viewPadding: mq.viewPadding.copyWith(bottom: 0,
+                                top: compactTopExtent > 0 ? 0 : mq.viewPadding.top),
+                            )
+                          : mq.copyWith(
+                              padding: mq.padding.copyWith(
+                                bottom: mq.padding.bottom + _kNestedBarClearance + extraClearance,
+                              ),
+                              viewPadding: mq.viewPadding.copyWith(
+                                bottom: mq.viewPadding.bottom + _kNestedBarClearance + extraClearance,
+                              ),
+                            );
                       return MediaQuery(
                         data: inflated,
                         child: Navigator(
@@ -940,21 +960,40 @@ class _MainShellState extends ConsumerState<MainShell>
                   ),
                 ),
 
-                // Unified Bottom Bar (Mini Player + Navigation)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: RepaintBoundary(
-                    child: SlideTransition(
-                      position: _navBarSlideAnimation,
-                      child: _buildUnifiedBottomBar(),
+                if (compactTopExtent > 0 && compactSong != null)
+                  Positioned(
+                    top: MediaQuery.paddingOf(context).top + 4,
+                    left: 8, right: 8,
+                    child: ErisinMusicPill(
+                      song: compactSong,
+                      isPlaying: ref.watch(isPlayingProvider),
+                      onPlayPause: () => ref.read(playerProvider.notifier).togglePlayPause(),
+                      onOpen: () async {
+                        final result = await NavigationHelper.navigateToFullPlayer(
+                          context, heroTag: 'erisin_top_player',
+                        );
+                        if (result != null && mounted) {
+                          ref.read(navigationIndexProvider.notifier).setIndex(result);
+                        }
+                      },
                     ),
                   ),
-                ),
 
-                // Floating island mini-player (draggable pill)
-                const FloatingMiniPlayer(),
+                // Unified Bottom Bar (Mini Player + Navigation)
+                if (!compact || !keyboardVisible)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: RepaintBoundary(
+                      child: compact
+                          ? _buildUnifiedBottomBar(compact: true)
+                          : SlideTransition(
+                              position: _navBarSlideAnimation,
+                              child: _buildUnifiedBottomBar(),
+                            ),
+                    ),
+                  ),
 
                 // Pinned scan/preload progress bubble (overlay minimized)
                 const Positioned.fill(child: FloatingScanProgress()),
@@ -962,8 +1001,6 @@ class _MainShellState extends ConsumerState<MainShell>
                 // Interactive tutorial overlay
                 const Positioned.fill(child: TutorialOverlay()),
 
-                // USB DAC attach → auto bit-perfect switch (decline-aware)
-                const UsbBitPerfectPrompt(),
               ],
             ),
           ),
@@ -1023,7 +1060,7 @@ class _MainShellState extends ConsumerState<MainShell>
     );
   }
 
-  Widget _buildUnifiedBottomBar() {
+  Widget _buildUnifiedBottomBar({bool compact = false}) {
     final currentIndex = ref.watch(navigationIndexProvider);
     final navBarConfig = ref.watch(navBarConfigProvider);
     final appPrefs = ref.watch(appPreferencesProvider);
@@ -1031,13 +1068,20 @@ class _MainShellState extends ConsumerState<MainShell>
     final alwaysVisible = ref.watch(navBarAlwaysVisibleProvider);
     final navBarVisible = ref.watch(navBarVisibleProvider);
     final scrollHidden = separated && !alwaysVisible && !navBarVisible;
-    final collapsed = _isBottomBarCollapsed || scrollHidden;
+    final collapsed = !compact && (_isBottomBarCollapsed || scrollHidden);
 
     return TutorialTargetAnchor(
       target: TutorialTarget.navBar,
       child: FlickNavBar(
         currentIndex: currentIndex,
-        config: navBarConfig,
+        config: compact
+            ? navBarConfig.copyWith(
+                barSizeFactor: 1,
+                buttonSpacingFactor: 0.5,
+                iconSizeFactor: 1,
+              )
+            : navBarConfig,
+        compact: compact,
         collapsed: collapsed,
         onTap: (index) {
           final nested = nestedNavigatorKey.currentState;
@@ -1058,13 +1102,14 @@ class _MainShellState extends ConsumerState<MainShell>
             ),
           );
         },
-        showMiniPlayer: true,
-        separateMiniPlayer: separated,
+        showMiniPlayer: !compact,
+        separateMiniPlayer: compact ? false : separated,
         miniPlayerWidget: TutorialTargetAnchor(
           target: TutorialTarget.miniPlayer,
           child: EmbeddedMiniPlayer(
             collapsed: collapsed,
-            separated: separated,
+            separated: compact ? false : separated,
+            compact: compact,
           ),
         ),
       ),

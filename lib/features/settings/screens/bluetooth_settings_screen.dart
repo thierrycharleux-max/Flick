@@ -280,28 +280,6 @@ class _BluetoothSettingsScreenState
                     .read(appPreferencesProvider.notifier)
                     .setResumeOnBluetoothReconnect(v),
               ),
-              ToggleSetting(
-                icon: LucideIcons.usb,
-                title: l10n.englishForFilipino.pauseOnUsbDacAttach,
-                subtitle: appPrefs.pauseOnUsbDacConnect
-                    ? l10n.playbackPausesWhenAUsbDac
-                    : l10n.playbackContinuesWhenAUsbDac,
-                value: appPrefs.pauseOnUsbDacConnect,
-                onChanged: (v) => ref
-                    .read(appPreferencesProvider.notifier)
-                    .setPauseOnUsbDacConnect(v),
-              ),
-              ToggleSetting(
-                icon: LucideIcons.usb,
-                title: l10n.englishForFilipino.pauseOnUsbDacDetach,
-                subtitle: appPrefs.pauseOnUsbDacDisconnect
-                    ? l10n.playbackPausesWhenAUsbDac2
-                    : l10n.playbackContinuesWhenAUsbDac2,
-                value: appPrefs.pauseOnUsbDacDisconnect,
-                onChanged: (v) => ref
-                    .read(appPreferencesProvider.notifier)
-                    .setPauseOnUsbDacDisconnect(v),
-              ),
             ]),
           ),
           const SizedBox(height: AppConstants.spacingLg),
