@@ -13,7 +13,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'audio_api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `decide_queue_plan`, `dsd_callback_debug_json`, `effective_dsd_output_mode_for_rate_and_channels`, `ensure_audio_engine_excluded`, `ensure_audio_engine`, `managed_output_debug_json`, `plan_track_engine_config`, `playback_range_for_path`, `prepare_decoder_source`, `queue_compatible_with_engine`, `read_audio_engine`, `record_dsd_native_failure`, `resolve_dsd_engine_sample_rate`, `resolve_requested_output_sample_rate`, `resolve_track_playback_output_sample_rate`, `verify_dop_passthrough`, `verify_dsd_engine_rate`, `with_audio_engine`
+// These functions are ignored because they are not marked as `pub`: `decide_queue_plan`, `dsd_callback_debug_json`, `effective_dsd_output_mode_for_rate_and_channels`, `ensure_audio_engine_excluded`, `ensure_audio_engine`, `last_playback_gain`, `managed_output_debug_json`, `plan_track_engine_config`, `playback_range_for_path`, `prepare_decoder_source`, `queue_compatible_with_engine`, `read_audio_engine`, `record_dsd_native_failure`, `resolve_dsd_engine_sample_rate`, `resolve_requested_output_sample_rate`, `resolve_track_playback_output_sample_rate`, `verify_dop_passthrough`, `verify_dsd_engine_rate`, `with_audio_engine`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `QueuePlanDecision`, `TrackEnginePlan`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
@@ -293,6 +293,11 @@ Future<void> audioSeek({required double positionSecs}) =>
 /// Set the playback volume.
 Future<void> audioSetVolume({required double volume}) =>
     RustLib.instance.api.crateApiAudioApiAudioSetVolume(volume: volume);
+
+/// Temporary PCM fade gain, independent of user volume and ReplayGain.
+/// Used only by the shared high-quality engine; passthrough is unchanged.
+Future<void> audioSetPlaybackGain({required double gain}) =>
+    RustLib.instance.api.crateApiAudioApiAudioSetPlaybackGain(gain: gain);
 
 /// Set the effective ReplayGain (dB) for the current track and as the default
 /// for subsequently spawned sources (next track, seek re-spawn). 0.0 = off.

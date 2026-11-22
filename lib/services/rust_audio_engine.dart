@@ -6,12 +6,14 @@ import 'package:flick/models/playback_state.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/audio_engine.dart';
 import 'package:flick/services/rust_audio_service.dart';
+import 'package:flick/services/playback_gain_envelope.dart';
+import 'package:flick/core/utils/dev_log.dart';
 
 typedef RustEngineInitializer = Future<void> Function();
 typedef RustEngineDisposer = Future<void> Function();
 typedef RustPlaybackPathResolver = Future<String?> Function(Song track);
-typedef RustHttpSourceResolver
-    = Future<({String url, Map<String, String> headers})?> Function(Song track);
+typedef RustHttpSourceResolver =
+    Future<({String url, Map<String, String> headers})?> Function(Song track);
 
 class RustAudioEngine implements AudioEngine {
   RustAudioEngine({
@@ -21,12 +23,12 @@ class RustAudioEngine implements AudioEngine {
     required RustPlaybackPathResolver resolvePlaybackPath,
     required RustEngineDisposer disposeEngine,
     RustHttpSourceResolver? resolveHttpSource,
-  })  : _playbackMode = playbackMode,
-        _rustAudioService = rustAudioService,
-        _ensureInitialized = ensureInitialized,
-        _resolvePlaybackPath = resolvePlaybackPath,
-        _disposeEngine = disposeEngine,
-        _resolveHttpSource = resolveHttpSource;
+  }) : _playbackMode = playbackMode,
+       _rustAudioService = rustAudioService,
+       _ensureInitialized = ensureInitialized,
+       _resolvePlaybackPath = resolvePlaybackPath,
+       _disposeEngine = disposeEngine,
+       _resolveHttpSource = resolveHttpSource;
 
   final AudioEngineType _playbackMode;
   final RustAudioService _rustAudioService;
@@ -44,6 +46,53 @@ class RustAudioEngine implements AudioEngine {
   bool _initialized = false;
   Future<void>? _initInFlight;
   bool _needsFreshPlay = false;
+
+  bool get _softTransitions => _playbackMode == AudioEngineType.rustOboe;
+  bool _disposed = false;
+  bool _fadeInPending = false;
+  int _transitionGeneration = 0;
+  static const _controlFade = Duration(milliseconds: 400);
+  static const _trackFadeOut = Duration(milliseconds: 240);
+  late final _envelope = PlaybackGainEnvelope(
+    applyGain: (gain) async {
+      if (!_disposed) await _rustAudioService.setPlaybackGain(gain);
+    },
+  );
+
+  void _cancelFadeIn() {
+    _transitionGeneration++;
+    _fadeInPending = false;
+    if (_softTransitions) _envelope.cancel();
+  }
+
+  Future<void> _fadeTo(double target, Duration duration) async {
+    if (!_softTransitions) return;
+    final generation = _transitionGeneration;
+    try {
+      await _envelope.fadeTo(target, duration);
+    } catch (error) {
+      if (_disposed || generation != _transitionGeneration) return;
+      devLog('[Rust fade] gain change failed: $error');
+      try {
+        await _envelope.jumpTo(target);
+      } catch (_) {}
+    }
+  }
+
+  void _maybeFadeIn() {
+    if (!_softTransitions || !_fadeInPending || _disposed) return;
+    final state = _rustAudioService.stateNotifier.value;
+    if (state != RustPlaybackState.playing &&
+        state != RustPlaybackState.crossfading) {
+      return;
+    }
+    if (!_rustAudioService.isPlaybackSourceReady) return;
+    _fadeInPending = false;
+    // Decoder/SD/network preparation may outlast the ramp. Start on audible
+    // playback, not while the native source is still buffering. Do not hold
+    // the command queue waiting for a slow decoder: Pause must remain usable.
+    unawaited(_fadeTo(1, _controlFade));
+  }
 
   @override
   Stream<PlaybackState> get playbackStateStream => _controller.stream;
@@ -77,6 +126,7 @@ class RustAudioEngine implements AudioEngine {
 
     addListener(_rustAudioService.stateNotifier, () {
       final rustState = _rustAudioService.stateNotifier.value;
+      _maybeFadeIn();
       final isPlaying =
           rustState == RustPlaybackState.playing ||
           rustState == RustPlaybackState.crossfading ||
@@ -85,6 +135,7 @@ class RustAudioEngine implements AudioEngine {
     });
 
     addListener(_rustAudioService.positionNotifier, () {
+      _maybeFadeIn();
       _emit(
         _state.copyWith(position: _rustAudioService.positionNotifier.value),
       );
@@ -112,7 +163,7 @@ class RustAudioEngine implements AudioEngine {
   }
 
   void _emit(PlaybackState next) {
-    if (next == _state) return;
+    if (_disposed || next == _state) return;
     _state = next;
     _controller.add(next);
   }
@@ -121,6 +172,15 @@ class RustAudioEngine implements AudioEngine {
   Future<void> load(Song track) async {
     await _safeEnsureInitialized();
     _attachListeners();
+    _cancelFadeIn();
+    if (_softTransitions) {
+      final state = _rustAudioService.stateNotifier.value;
+      final audible =
+          state == RustPlaybackState.playing ||
+          state == RustPlaybackState.crossfading;
+      await _fadeTo(0, audible ? _trackFadeOut : Duration.zero);
+      if (audible) await _rustAudioService.pause();
+    }
     _loadedTrack = track;
     _needsFreshPlay = true;
     _pendingSeekPosition = Duration.zero;
@@ -137,6 +197,16 @@ class RustAudioEngine implements AudioEngine {
 
   @override
   Future<void> play() async {
+    if (_disposed) throw StateError('Rust audio engine disposed');
+    final generation = _transitionGeneration;
+    await _playInternal();
+    if (_softTransitions && !_disposed && generation == _transitionGeneration) {
+      _fadeInPending = true;
+      _maybeFadeIn();
+    }
+  }
+
+  Future<void> _playInternal() async {
     await _safeEnsureInitialized();
     _attachListeners();
     final track = _loadedTrack;
@@ -237,13 +307,21 @@ class RustAudioEngine implements AudioEngine {
   Future<void> pause() async {
     await _safeEnsureInitialized();
     _attachListeners();
-    await _rustAudioService.pause();
+    _cancelFadeIn();
+    final state = _rustAudioService.stateNotifier.value;
+    final audible =
+        state == RustPlaybackState.playing ||
+        state == RustPlaybackState.crossfading;
+    await _fadeTo(0, audible ? _controlFade : Duration.zero);
+    if (!_disposed) await _rustAudioService.pause();
   }
 
   @override
   Future<void> stop() async {
     await _safeEnsureInitialized();
     _attachListeners();
+    _cancelFadeIn();
+    await _fadeTo(0, Duration.zero);
     await _rustAudioService.stop();
   }
 
@@ -265,22 +343,21 @@ class RustAudioEngine implements AudioEngine {
     }
 
     await _rustAudioService.seek(position);
-    _pendingSeekPosition = null; // ponytail: immediate seek applied; clears stale value so resume() won't re-seek backward
+    _pendingSeekPosition =
+        null; // ponytail: immediate seek applied; clears stale value so resume() won't re-seek backward
   }
 
   @override
   void updateTrack(Song track) {
     _loadedTrack = track;
-    _emit(
-      _state.copyWith(
-        currentTrack: track,
-        duration: track.duration,
-      ),
-    );
+    _emit(_state.copyWith(currentTrack: track, duration: track.duration));
   }
 
   @override
   Future<void> dispose() async {
+    if (_disposed) return;
+    _disposed = true;
+    _cancelFadeIn();
     for (final remove in _notifierUnsubscribers) {
       remove();
     }

@@ -1792,6 +1792,24 @@ pub fn audio_set_volume(volume: f32) -> Result<(), String> {
     Ok(())
 }
 
+static LAST_PLAYBACK_GAIN: AtomicU32 = AtomicU32::new(1.0f32.to_bits());
+
+pub(crate) fn last_playback_gain() -> f32 {
+    f32::from_bits(LAST_PLAYBACK_GAIN.load(Ordering::Relaxed))
+}
+
+/// Temporary PCM fade gain, independent of user volume and ReplayGain.
+/// Used only by the shared high-quality engine; passthrough is unchanged.
+pub fn audio_set_playback_gain(gain: f32) -> Result<(), String> {
+    if !gain.is_finite() {
+        return Err("Playback gain must be finite".to_string());
+    }
+    let gain = gain.clamp(0.0, 1.0);
+    LAST_PLAYBACK_GAIN.store(gain.to_bits(), Ordering::Relaxed);
+    let _ = with_audio_engine(|handle| handle.set_playback_gain(gain));
+    Ok(())
+}
+
 /// Set the effective ReplayGain (dB) for the current track and as the default
 /// for subsequently spawned sources (next track, seek re-spawn). 0.0 = off.
 ///
@@ -2037,7 +2055,9 @@ pub fn audio_get_channels() -> Option<usize> {
 
 /// Shutdown the audio engine.
 pub fn audio_shutdown() -> Result<(), String> {
-    ENGINE_MANAGER.shutdown()
+    let result = ENGINE_MANAGER.shutdown();
+    LAST_PLAYBACK_GAIN.store(1.0f32.to_bits(), Ordering::Relaxed);
+    result
 }
 
 #[cfg(test)]

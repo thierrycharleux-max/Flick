@@ -1,9 +1,10 @@
 # Flick
 
 > **Fork Erisin ES8189C — Android 9, écran 1024×600.** Version actuelle :
-> `0.23.0-erisin.6+36`, interface française par défaut, package distinct `com.mossapps.flick.erisin`.
+> `0.23.0-erisin.7+37`, interface française par défaut, package distinct `com.mossapps.flick.erisin`.
 > Grande pochette à gauche, titre / album / artistes à droite, commandes visibles
-> en paysage. La bibliothèque s'actualise au lancement ; la racine d'une carte
+> en paysage. Fondus de pause/reprise et de changement manuel disponibles
+> aussi en Haute qualité/Rust. La bibliothèque s'actualise au lancement ; la racine d'une carte
 > microSD peut remplacer les dossiers d'albums déjà ajoutés sans effacer les favoris.
 > L'accès direct aux DAC USB est désactivé dans cette adaptation ; la lecture
 > utilise la sortie gérée par Android et le stockage USB reste utilisable.

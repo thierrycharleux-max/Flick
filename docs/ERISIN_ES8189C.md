@@ -321,3 +321,40 @@ Apple Music/pochettes sont attendues avant de signaler la fin d’une résolutio
 ce qui empêche une lecture ou une actualisation immédiate de retrouver l’ancien
 contenu. Enfin, les compteurs de pistes/disques manquants conservent le chiffre
 zéro avec la règle française de pluriel.
+
+
+## Mise à jour Erisin 0.23.0-erisin.7+37 (22 novembre 2026)
+
+Le retour de l’Erisin a établi que le moteur sélectionné était Haute qualité
+(Rust/Oboe). Les fondus de la version 36 couvraient seulement Standard/Android :
+ils ne s’appliquaient donc pas à ce chemin.
+
+Ajout d’un gain PCM temporaire dans le rendu natif Rust, après les traitements
+audio. Il multiplie les échantillons sans modifier le volume mémorisé, sa courbe,
+ReplayGain ou la fréquence d’échantillonnage. Il est conservé lorsqu’un nouveau
+format entraîne la préparation d’un autre flux audio. Les sorties bit-perfect
+ne reçoivent pas ce gain ; l’accès DAC externe reste désactivé.
+
+En Haute qualité, pause/reprise : 400 ms ; changement manuel : baisse de 240 ms
+avant le chargement, puis remontée de 400 ms. La remontée attend le démarrage
+effectif de la source demandée, même si un ancien état Playing arrive en retard.
+Pause et arrêt annulent les remontées différées. Les commandes ne sont pas
+bloquées en attendant la fin du décodage d’une source en cours de chargement.
+
+Validation : 1 112 tests Flutter et 337 tests Rust réussis. Le test natif de
+rendu compare les échantillons PCM à plusieurs gains temporaires, y compris
+zéro et 0,0001, et aux volumes utilisateur 0, 0,1, 0,4, 1 et 1,5. Les tests
+Haute qualité couvrent pause/reprise, titre suivant, chargement lent, état
+Playing périmé, volume nul, arrêt, destruction et erreur du contrôle de gain.
+Les tests Rust locaux utilisent un dossier temporaire de projet canonique
+pour éviter le lien symbolique /var → /private/var propre à macOS.
+
+APK installé par-dessus la version 36 sur émulateur Android 10, 1024×600 :
+bibliothèque conservée, moteur Haute qualité sélectionné et route effective
+RUST_OBOE confirmée dans les diagnostics. Pause, reprise et sélection du titre
+suivant contrôlées ; aucune erreur du nouveau contrôle de gain ni exception
+fatale relevée. Émulateur fermé après les essais. L’écoute sur l’Erisin physique
+reste à confirmer.
+
+APK ARM32/ARM64, même certificat que la version 36.
+SHA-256 : `9d8f64998893716b7c6c315ebc2e52287bb65372b29888231b7799bd28510796`.

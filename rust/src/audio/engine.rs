@@ -159,6 +159,8 @@ impl From<crate::audio::dsd_engine::dsd::DsdOutputMode> for EngineDsdMode {
 pub struct AudioCallbackData {
     /// Volume level (0.0 to 1.0)
     volume: std::sync::atomic::AtomicU32, // Using AtomicU32 for f32 bit pattern
+    /// Temporary PCM fade multiplier, separate from the remembered user level.
+    playback_gain: AtomicU32,
     /// Playback speed (0.5 to 2.0)
     playback_speed: std::sync::atomic::AtomicU32, // Using AtomicU32 for f32 bit pattern
     /// Pause state
@@ -302,6 +304,7 @@ impl AudioCallbackData {
 
         Self {
             volume: std::sync::atomic::AtomicU32::new(1.0f32.to_bits()),
+            playback_gain: AtomicU32::new(1.0f32.to_bits()),
             playback_speed: std::sync::atomic::AtomicU32::new(initial_speed.to_bits()),
             paused: AtomicBool::new(false),
             pipeline_mode: AtomicU8::new(pipeline_mode as u8),
@@ -474,6 +477,16 @@ impl AudioCallbackData {
             "Volume out of range: {volume}"
         );
         self.volume.store(volume.to_bits(), Ordering::Relaxed);
+    }
+
+    #[inline]
+    pub fn get_playback_gain(&self) -> f32 {
+        f32::from_bits(self.playback_gain.load(Ordering::Relaxed))
+    }
+
+    #[inline]
+    pub fn set_playback_gain(&self, gain: f32) {
+        self.playback_gain.store(gain.clamp(0.0, 1.0).to_bits(), Ordering::Relaxed);
     }
 
     #[inline]
@@ -742,6 +755,12 @@ impl AudioEngineHandle {
     /// Set volume.
     pub fn set_volume(&self, volume: f32) -> Result<(), String> {
         self.send_command(AudioCommand::SetVolume { volume })
+    }
+
+    /// Set a temporary DSP gain without changing the volume or ReplayGain.
+    pub fn set_playback_gain(&self, gain: f32) -> Result<(), String> {
+        self.callback_data.set_playback_gain(gain);
+        Ok(())
     }
 
     /// Set the effective ReplayGain (dB) for the current track and as the
@@ -3615,7 +3634,7 @@ pub(crate) fn audio_callback(
 
     // --- DSP path: full processing chain ---
 
-    let volume = data.get_gain();
+    let volume = data.get_gain() * data.get_playback_gain();
     let speed = data.get_playback_speed();
     let channels = data.channels();
 
@@ -5843,6 +5862,34 @@ mod tests {
         let output = run_callback(&data, input.len());
 
         assert_eq!(output, input);
+    }
+
+    #[test]
+    fn callback_pcm_fade_scales_samples_without_changing_user_volume() {
+        let input = vec![0.5, -0.5, 0.25, -0.25];
+        for user_volume in [0.0f32, 0.1, 0.4, 1.0, 1.5] {
+            for fade in [1.0f32, 0.5, 0.01, 0.0001, 0.0] {
+                let data = build_passthrough_callback_data(48_000, 2);
+                data.set_pipeline_mode(PipelineMode::Dsp);
+                data.set_volume(user_volume);
+                data.set_playback_gain(fade);
+                data.sources.lock().set_current(build_source(&input, 48_000, 2));
+                let output = run_callback(&data, input.len());
+                let expected: Vec<f32> = input.iter()
+                    .map(|s| s * (volume_to_gain(user_volume) * fade)).collect();
+                assert_eq!(output, expected, "user={user_volume} fade={fade}");
+                assert_eq!(data.get_volume(), user_volume);
+            }
+        }
+    }
+
+    #[test]
+    fn playback_fade_does_not_scale_bit_perfect_passthrough() {
+        let data = build_passthrough_callback_data(48_000, 2);
+        let input = vec![0.5, -0.5, 0.25, -0.25];
+        data.set_playback_gain(0.0);
+        data.sources.lock().set_current(build_source(&input, 48_000, 2));
+        assert_eq!(run_callback(&data, input.len()), input);
     }
 
     #[test]

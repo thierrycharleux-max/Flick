@@ -395,6 +395,11 @@ impl EngineManager {
                 let _ = handle.set_volume(volume);
             }
         }
+        // Source preparation can rebuild the output for another sample rate.
+        // Carry a pending fade/mute into that new callback before playback.
+        if let Some(handle) = state.rust_handle.as_ref() {
+            let _ = handle.set_playback_gain(crate::api::audio_api::last_playback_gain());
+        }
         if let Some((enabled, duration_secs, curve)) =
             crate::api::audio_api::take_pending_crossfade()
         {

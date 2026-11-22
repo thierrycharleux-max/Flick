@@ -258,6 +258,19 @@ class RustAudioService {
       stateNotifier.value == RustPlaybackState.playing ||
       stateNotifier.value == RustPlaybackState.crossfading;
 
+  SourceIdentity? _requestedPlaybackSource;
+
+  /// Ignore a stale Playing event from the previous source during a load.
+  bool get isPlaybackSourceReady {
+    final expected = _requestedPlaybackSource;
+    if (!_initialized || expected == null) return false;
+    try {
+      return rust_audio.audioGetCurrentSource() == expected;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Get the current track path.
   String? get currentPath => currentSource?.path;
 
@@ -297,6 +310,7 @@ class RustAudioService {
     // Replaying the same segment preserves its native queued successor.
     if (_currentSource != source) _nextSource = null;
     _currentSource = source;
+    _requestedPlaybackSource = source;
     _startProgressUpdates(fast: true);
   }
 
@@ -325,6 +339,7 @@ class RustAudioService {
     final source = _httpSourceIdentity(url, startSecs, endSecs);
     if (_currentSource != source) _nextSource = null;
     _currentSource = source;
+    _requestedPlaybackSource = source;
     _startProgressUpdates(fast: true);
   }
 
@@ -451,6 +466,7 @@ class RustAudioService {
   /// Resume playback.
   Future<void> resume() async {
     if (!_initialized) return;
+    _requestedPlaybackSource = currentSource;
     await rust_audio.audioResume();
     // Resume fast updates for smooth progress bar
     _startProgressUpdates(fast: true);
@@ -464,6 +480,7 @@ class RustAudioService {
     await rust_audio.audioStop();
     _stopProgressUpdates();
     _currentSource = null;
+    _requestedPlaybackSource = null;
     _nextSource = null;
   }
 
@@ -479,6 +496,18 @@ class RustAudioService {
     final clampedVolume = volume.clamp(0.0, 2.0);
     volumeNotifier.value = clampedVolume;
     await rust_audio.audioSetVolume(volume: clampedVolume);
+  }
+
+  Future<void> _playbackGainWrites = Future<void>.value();
+
+  /// Temporary PCM fade gain; never changes the volume notifier or settings.
+  Future<void> setPlaybackGain(double gain) {
+    final write = _playbackGainWrites.catchError((Object _) {}).then((_) async {
+      if (!_initialized) return;
+      await rust_audio.audioSetPlaybackGain(gain: gain.clamp(0.0, 1.0));
+    });
+    _playbackGainWrites = write;
+    return write;
   }
 
   /// Set the effective ReplayGain (dB) for the current track and as the
@@ -590,7 +619,9 @@ class RustAudioService {
 
     _stopProgressUpdates();
     _stopEventPolling();
+    await _playbackGainWrites.catchError((Object _) {});
     await rust_audio.audioShutdown();
+    _requestedPlaybackSource = null;
     _initialized = false;
   }
 
